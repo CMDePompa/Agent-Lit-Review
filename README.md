@@ -4,6 +4,8 @@ This project turns research PDFs into structured notes in an Obsidian vault. A p
 
 Codex reads the PDF using the model selected for your Codex task. The workflow does not call the OpenAI API, require an API key, or create separate API charges. Its current research vocabulary is for polymer science, but you can change the note fields and research context for another field.
 
+Disclaimer: This project is provided as a research workflow template. Review generated notes against the original sources before relying on them for scholarly work.
+
 ## Project structure
 
 ```text
