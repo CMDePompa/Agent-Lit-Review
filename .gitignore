@@ -1,0 +1,25 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local Obsidian state and preferences
+.obsidian/
+
+# Source documents and generated user content
+PDFs/**
+!PDFs/Inbox/
+!PDFs/Ingested/
+!PDFs/Inbox/.gitkeep
+!PDFs/Ingested/.gitkeep
+Literature Notes/Papers/**
+!Literature Notes/Papers/.gitkeep
+
+# Local metadata and processing history
+data/zotero-export.json
+data/processing_records/**
+!data/processing_records/.gitkeep
+
+# Scratch output
+tmp/

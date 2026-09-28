@@ -1,0 +1,79 @@
+filters:
+  and:
+    - file.inFolder("Literature Notes/Papers")
+views:
+  - type: table
+    name: Rapid Review
+    order:
+      - year
+      - authors
+      - title
+      - morphologies
+      - journal
+      - summary_status
+      - review_status
+      - doi
+      - pdf
+    sort:
+      - property: year
+        direction: DESC
+    columnSize:
+      note.authors: 113
+      note.title: 493
+      note.doi: 101
+  - type: table
+    name: All Literature
+    order:
+      - file
+      - year
+      - authors
+      - title
+      - journal
+      - doi
+      - metadata_source
+      - zotero_item_key
+      - zotero_export_age_days
+      - pdf
+      - research_topics
+      - methodology
+      - evidence_type
+      - polymer_system
+      - morphologies
+      - paper_role
+      - context_summary
+      - summary_status
+      - review_status
+      - metadata_review_needed
+  - type: table
+    name: Unread
+    filters:
+      and:
+        - review_status == "unread"
+    order:
+      - year
+      - authors
+      - title
+  - type: table
+    name: Needs Review
+    filters:
+      or:
+        - summary_status == "ai-draft"
+        - metadata_review_needed == true
+    order:
+      - year
+      - authors
+      - title
+      - summary_status
+      - metadata_review_needed
+  - type: table
+    name: Morphologies
+    order:
+      - year
+      - title
+      - morphologies
+      - methodology
+      - evidence_type
+      - file.name
+      - authors
+      - journal
+      - doi
