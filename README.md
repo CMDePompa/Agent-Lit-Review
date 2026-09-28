@@ -35,7 +35,7 @@ LitNote-Agent/
     └── processing_records/                # Local provenance records (ignored by Git)
 ```
 
-The repository includes placeholder files so the empty runtime folders are created when cloned. Their contents remain local and are not uploaded to GitHub.
+The repository includes zero-byte `.gitkeep` placeholder files so the empty runtime folders are created when cloned. Git does not track empty directories, so without these placeholders a fresh clone would be missing `PDFs/Inbox`, `PDFs/Ingested`, `Literature Notes/Papers`, and `data/processing_records`. The placeholders contain no data and can remain in the repository; the actual contents of those folders stay local and are ignored by Git.
 
 ## What you need
 
@@ -69,6 +69,47 @@ A successful run moves the PDF to `PDFs/Ingested`, unless you ask Codex to leave
 Review articles are a separate source type: name a journal review `REVIEW - <Year> <Author(s)> - <Article Title>.pdf`. It uses journal-article Zotero matching and an article-style note that identifies the work as a review.
 
 The skill's own workflow version is stored separately in the processing record.
+
+## Using other AI agents
+
+The workflow is built from an [Agent Skills](https://developers.openai.com/api/docs/guides/tools-skills) `SKILL.md`, Markdown references, and standard-library Python scripts. Those parts are portable, but each agent product has different skill-discovery locations, PDF tools, permissions, and scheduling features.
+
+### Claude Code
+
+Claude Code discovers project skills from `.claude/skills/<skill-name>/SKILL.md`, whereas this repository keeps the canonical skill in `.agents/skills/literature-intake` for Codex. After cloning, copy the skill into Claude Code's project-skill directory:
+
+PowerShell:
+
+```powershell
+New-Item -ItemType Directory -Force .claude\skills | Out-Null
+Copy-Item -Recurse .agents\skills\literature-intake .claude\skills\
+```
+
+macOS or Linux:
+
+```bash
+mkdir -p .claude/skills
+cp -R .agents/skills/literature-intake .claude/skills/
+```
+
+Then open the repository root in Claude Code and ask it to use the `literature-intake` skill. The same Python helpers, note template, collision checks, and local Zotero export apply. See [Anthropic's Agent Skills documentation](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview) for its current discovery rules.
+
+Claude Code does not include Anthropic's pre-built PDF Agent Skill, so PDF-reading behavior depends on the tools available in that Claude Code environment. Test one disposable source first and ask Claude to leave it in Inbox. If the agent cannot inspect the complete PDF—including methods, results, figures, and limitations—stop rather than creating a partial note. Claude scheduling is also separate from Codex scheduled tasks; configure recurring runs using the automation mechanism provided by your chosen environment.
+
+The copied `.claude/skills` folder is intentionally not committed as a second copy of the workflow. If you edit the canonical skill later, repeat the copy so Claude Code receives the same version.
+
+### Other local AI agents
+
+Another agent can use this workflow when it can:
+
+- Read the selected PDF thoroughly, including figures and tables when relevant.
+- Read and write files inside the repository while respecting the collision and human-owned-section safeguards.
+- Run Python 3 scripts from the repository root.
+- Load a `SKILL.md` or accept the workflow as project instructions.
+
+If the agent does not automatically discover Agent Skills, point it to `.agents/skills/literature-intake/SKILL.md` and ask it to follow that file for the current task. Do not assume that generic chat interfaces can move local files, run the helpers, or access an Obsidian vault. Web-only assistants generally require manual file uploads and downloads, which does not reproduce the local intake workflow end to end.
+
+Regardless of the model, keep the same safety rules: process one source package at a time, do not overwrite existing notes or PDFs, do not use filenames as scientific evidence, and review every generated note against the source.
 
 ## Why one source at a time?
 
