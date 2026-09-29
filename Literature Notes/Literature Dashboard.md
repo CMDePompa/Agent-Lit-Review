@@ -90,8 +90,10 @@ Check the title, authors, year, venue, DOI, claims, numbers, figure suggestions,
 A scheduled Codex task can check Inbox periodically. Give each run its own task context and ask it to process only the first eligible source package in filename order. Flagged packages are skipped until their issue is fixed and they are retried. Choose a frequency that leaves enough time so that runs don't overlap too much. Suggested task prompt:
 
 ```text
-Use $literature-intake to process the next paper.
+Use $literature-intake to process the next eligible source package. As soon as you select its PDF, rename this chat to “LitNote — <PDF filename without .pdf>”. Keep that title even if processing fails. If no source is eligible, leave the chat title unchanged.
 ```
+
+I recommend asking it to rename the chat to share the title of the source processed because it will get very confusing very quickly once you start processing large amounts of literature.
 
 A faster model with a low reasoning setting may be sufficient for summarizing one paper per chat and can conserve usage for harder tasks.
 
