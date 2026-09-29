@@ -27,11 +27,13 @@ TEXTBOOK_SECTIONS = (
     "Important Examples", "Relevance to My Research", "Figures Worth Reviewing", "Suggested Topics",
     "My Notes", "Figure Screenshots", "Connections to Other Papers",
 )
-VERSION = "literature-intake-v1"
+VERSION = "literature-intake-v2"
 TAG_LIST_PROPERTIES = (
     "research_topics", "methodology", "evidence_type", "polymer_system", "morphologies", "paper_role",
 )
 TAG_PROPERTIES = (*TAG_LIST_PROPERTIES, "context_summary")
+FAILURES_START = "<!-- literature-intake:needs-attention:start -->"
+FAILURES_END = "<!-- literature-intake:needs-attention:end -->"
 
 
 def inbox_items(root=ROOT):
@@ -39,16 +41,163 @@ def inbox_items(root=ROOT):
     return sorted((p.name for p in inbox.iterdir() if p.is_file() and p.suffix.lower() == ".pdf"), key=str.casefold) if inbox.exists() else []
 
 
-def resolve_pdf(value, root=ROOT):
+def resolve_inbox_file(value, root=ROOT):
     inbox = (root / "PDFs" / "Inbox").resolve()
     supplied = Path(value)
     candidate = (supplied if supplied.is_absolute() else root / supplied).resolve()
     if candidate.parent != inbox or not candidate.is_file() or candidate.suffix.lower() != ".pdf":
         raise ValueError("Choose an existing PDF directly inside PDFs/Inbox")
+    return candidate
+
+
+def resolve_pdf(value, root=ROOT):
+    candidate = resolve_inbox_file(value, root)
     with candidate.open("rb") as stream:
         if stream.read(5) != b"%PDF-":
             raise ValueError("File does not have a PDF header")
     return candidate
+
+
+def _failure_path(root):
+    return root / "data" / "intake_failures.json"
+
+
+def _load_failures(root):
+    path = _failure_path(root)
+    if not path.exists():
+        return {}
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict) or value.get("version") != 1 or not isinstance(value.get("items"), dict):
+        raise ValueError(f"Invalid intake failure state: {path}")
+    return value["items"]
+
+
+def _package_fingerprint(filename, root):
+    inbox = root / "PDFs" / "Inbox"
+    primary = inbox / filename
+    if not primary.is_file():
+        return None
+    paths = [primary]
+    if not filename.startswith("SI - "):
+        supplementary = inbox / ("SI - " + filename)
+        if supplementary.is_file():
+            paths.append(supplementary)
+    return {path.name: {"size": path.stat().st_size, "mtime_ns": path.stat().st_mtime_ns} for path in paths}
+
+
+def _dashboard_failure_text(dashboard, items):
+    if not dashboard.exists():
+        raise FileNotFoundError(f"Dashboard not found: {dashboard}")
+    original = dashboard.read_text(encoding="utf-8")
+    if original.count(FAILURES_START) != 1 or original.count(FAILURES_END) != 1:
+        raise ValueError("Dashboard needs exactly one needs-attention marker pair")
+    before, remainder = original.split(FAILURES_START, 1)
+    _, after = remainder.split(FAILURES_END, 1)
+    if items:
+        lines = []
+        for filename, entry in sorted(items.items(), key=lambda item: item[0].casefold()):
+            name = _markdown_safe(filename)
+            reason = _markdown_safe(entry["reason"])
+            lines.append(f"- **{name}** — {reason}")
+        content = "\n".join(lines)
+    else:
+        content = "No source packages are currently flagged."
+    return original, before + FAILURES_START + "\n" + content + "\n" + FAILURES_END + after
+
+
+def _markdown_safe(value):
+    value = " ".join(str(value).split())
+    value = value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return re.sub(r"([\\`*_{}\[\]()#+.!|~-])", r"\\\1", value)
+
+
+def _save_failures(items, root):
+    path = _failure_path(root)
+    dashboard = root / "Literature Notes" / "Literature Dashboard.md"
+    original_dashboard, updated_dashboard = _dashboard_failure_text(dashboard, items)
+    original_state = path.read_text(encoding="utf-8") if path.exists() else None
+    updated_state = json.dumps({"version": 1, "items": items}, ensure_ascii=False, indent=2) + "\n"
+    staged_state = _stage(path.parent, updated_state)
+    staged_dashboard = _stage(dashboard.parent, updated_dashboard)
+    try:
+        if dashboard.read_text(encoding="utf-8") != original_dashboard or (path.read_text(encoding="utf-8") if path.exists() else None) != original_state:
+            raise RuntimeError("Intake state or Dashboard changed during update")
+        os.replace(staged_state, path)
+        try:
+            os.replace(staged_dashboard, dashboard)
+        except Exception:
+            if original_state is None:
+                path.unlink(missing_ok=True)
+            else:
+                os.replace(_stage(path.parent, original_state), path)
+            raise
+    finally:
+        staged_state.unlink(missing_ok=True)
+        staged_dashboard.unlink(missing_ok=True)
+
+
+def _refresh_failures(root):
+    items = _load_failures(root)
+    current = {name: entry for name, entry in items.items() if _package_fingerprint(name, root) == entry.get("fingerprint")}
+    if current != items:
+        _save_failures(current, root)
+    return current
+
+
+def _already_processed_in_inbox(filename, root):
+    record = root / "data" / "processing_records" / (Path(filename).stem + ".json")
+    if not record.is_file():
+        return False
+    try:
+        value = json.loads(record.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    if not isinstance(value, dict):
+        return False
+    return (value.get("source_pdf_filename") == filename
+            and value.get("success_status") == "success"
+            and value.get("resulting_pdf_path", "").replace("\\", "/") == "PDFs/Inbox/" + filename)
+
+
+def inspect_queue(root=ROOT):
+    items = _refresh_failures(root)
+    names = inbox_items(root)
+    processed = [name for name in names if _already_processed_in_inbox(name, root)]
+    eligible = [name for name in names if not name.startswith("SI - ") and name not in items and name not in processed]
+    return {"eligible": eligible,
+            "needs_attention": [{"filename": name, "reason": items[name]["reason"], "flagged_at": items[name]["flagged_at"]}
+                                for name in sorted(items, key=str.casefold)],
+            "already_processed": processed,
+            "supplementary": [name for name in names if name.startswith("SI - ")]}
+
+
+def defer_pdf(value, reason, root=ROOT):
+    pdf = resolve_inbox_file(value, root)
+    clean_reason = " ".join(reason.split())[:500]
+    if not clean_reason:
+        raise ValueError("Give a specific reason and the action needed to retry")
+    items = _refresh_failures(root)
+    items[pdf.name] = {"reason": clean_reason,
+                       "flagged_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                       "fingerprint": _package_fingerprint(pdf.name, root)}
+    _save_failures(items, root)
+    return {"filename": pdf.name, "reason": clean_reason, "status": "needs_attention"}
+
+
+def retry_pdf(value, root=ROOT):
+    pdf = resolve_inbox_file(value, root)
+    items = _refresh_failures(root)
+    if pdf.name in items:
+        del items[pdf.name]
+        _save_failures(items, root)
+    return {"filename": pdf.name, "status": "eligible"}
+
+
+def _clear_failure(filename, root):
+    items = _load_failures(root)
+    if filename in items:
+        del items[filename]
+        _save_failures(items, root)
 
 
 def safe_name(value):
@@ -611,6 +760,7 @@ def commit(pdf_value, note_name, markdown, *, supplementary_pdf_value=None, no_m
         for temp in (staged_note, staged_record):
             if temp is not None:
                 temp.unlink(missing_ok=True)
+    _clear_failure(pdf.name, root)
     return provenance
 
 
@@ -620,6 +770,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("inspect")
+    defer = sub.add_parser("defer", help="Flag an unprocessable Inbox PDF and skip it in next-source selection")
+    defer.add_argument("pdf")
+    defer.add_argument("reason")
+    retry = sub.add_parser("retry", help="Clear a failure flag after fixing the issue")
+    retry.add_argument("pdf")
     check = sub.add_parser("check")
     check.add_argument("pdf")
     check.add_argument("note_name")
@@ -646,7 +801,11 @@ def main():
     sub.add_parser("repair-pdf-links", help="Move PDF links into the pdf property and remove duplicate body links on existing notes")
     args = parser.parse_args()
     if args.command == "inspect":
-        print(json.dumps(inbox_items(), ensure_ascii=False, indent=2))
+        print(json.dumps(inspect_queue(), ensure_ascii=False, indent=2))
+    elif args.command == "defer":
+        print(json.dumps(defer_pdf(args.pdf, args.reason), ensure_ascii=False, indent=2))
+    elif args.command == "retry":
+        print(json.dumps(retry_pdf(args.pdf), ensure_ascii=False, indent=2))
     elif args.command == "check":
         pdf = resolve_pdf(args.pdf)
         supplementary = supplementary_for(pdf, args.supplementary_pdf) if args.supplementary_pdf else None

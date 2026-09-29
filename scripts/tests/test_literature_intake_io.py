@@ -26,9 +26,56 @@ class IntakeFileTests(unittest.TestCase):
 
     def test_inspection_and_empty_inbox(self):
         self.assertEqual(intake.inbox_items(self.root), ["paper.pdf"])
+        self.assertEqual(intake.inspect_queue(self.root)["eligible"], ["paper.pdf"])
         self.pdf.unlink()
         self.assertEqual(intake.inbox_items(self.root), [])
         self.assertFalse((self.root / "Literature Notes").exists())
+
+    def dashboard_fixture(self):
+        dashboard = self.root / "Literature Notes" / "Literature Dashboard.md"
+        dashboard.parent.mkdir(parents=True, exist_ok=True)
+        dashboard.write_text(
+            "# My dashboard\n\n" + intake.FAILURES_START + "\nNo source packages are currently flagged.\n"
+            + intake.FAILURES_END + "\n\nMy own section stays here.\n", encoding="utf-8"
+        )
+        return dashboard
+
+    def test_failed_first_pdf_is_flagged_and_next_pdf_is_eligible(self):
+        dashboard = self.dashboard_fixture()
+        first = self.inbox / "a.pdf"
+        first.write_bytes(b"not a PDF")
+        intake.defer_pdf(first, "Unreadable PDF; replace it with a valid export.", self.root)
+        queue = intake.inspect_queue(self.root)
+        self.assertEqual(queue["eligible"], ["paper.pdf"])
+        self.assertEqual(queue["needs_attention"][0]["filename"], "a.pdf")
+        self.assertIn("Unreadable PDF", dashboard.read_text(encoding="utf-8"))
+        self.assertIn("My own section stays here.", dashboard.read_text(encoding="utf-8"))
+        self.assertTrue(first.exists())
+        self.assertEqual(json.loads((self.root / "data" / "intake_failures.json").read_text(encoding="utf-8"))["items"]["a.pdf"]["reason"],
+                         "Unreadable PDF; replace it with a valid export.")
+
+    def test_changed_pdf_requeues_and_clears_dashboard_flag(self):
+        dashboard = self.dashboard_fixture()
+        intake.defer_pdf(self.pdf, "Cannot read pages; replace the PDF.", self.root)
+        self.pdf.write_bytes(b"%PDF-1.4\nreplacement content")
+        queue = intake.inspect_queue(self.root)
+        self.assertEqual(queue["eligible"], ["paper.pdf"])
+        self.assertEqual(queue["needs_attention"], [])
+        self.assertIn("No source packages are currently flagged.", dashboard.read_text(encoding="utf-8"))
+
+    def test_retry_and_success_clear_failure_flag(self):
+        dashboard = self.dashboard_fixture()
+        intake.defer_pdf(self.pdf, "Metadata export missing.", self.root)
+        self.assertEqual(intake.inspect_queue(self.root)["eligible"], [])
+        intake.retry_pdf(self.pdf, self.root)
+        self.assertEqual(intake.inspect_queue(self.root)["eligible"], ["paper.pdf"])
+        intake.defer_pdf(self.pdf, "Metadata export missing.", self.root)
+        intake.commit(self.pdf, "paper", self.note_text, no_move=True, root=self.root)
+        queue = intake.inspect_queue(self.root)
+        self.assertEqual(queue["needs_attention"], [])
+        self.assertEqual(queue["already_processed"], ["paper.pdf"])
+        self.assertEqual(queue["eligible"], [])
+        self.assertIn("No source packages are currently flagged.", dashboard.read_text(encoding="utf-8"))
 
     def test_existing_note_collision(self):
         note = self.root / "Literature Notes" / "Papers" / "paper.md"

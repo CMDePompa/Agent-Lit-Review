@@ -24,6 +24,7 @@ Literature Notes/Papers/**
 
 # Local metadata and processing history
 data/zotero-export.json
+data/intake_failures.json
 data/processing_records/**
 !data/processing_records/.gitkeep
 

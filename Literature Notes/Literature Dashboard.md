@@ -16,11 +16,21 @@ Quick reference material is included below for help getting started with the ove
 
 # Quick Reference
 
+## Needs attention
+
+<!-- literature-intake:needs-attention:start -->
+No source packages are currently flagged.
+<!-- literature-intake:needs-attention:end -->
+
+The intake skill updates the list between the markers above when it cannot process a source package. Later “next paper” runs skip flagged PDFs and continue with the next eligible package. Fix the stated issue, then ask the skill to retry that filename. Replacing or editing the PDF also clears its flag on the next Inbox inspection. Original PDFs stay in `PDFs/Inbox` while flagged.
+
+PDFs successfully processed with “leave the PDF in Inbox” are also excluded from later “next paper” runs.
+
 ## Add literature
 
 1. Put a PDF in `PDFs/Inbox` and open the parent `Literature` folder as a Codex project.
 2. Ask Codex to use `$literature-intake` with one of the requests below. Each run handles at most one primary source package unless you explicitly ask for more.
-3. A successful run creates a note in `Literature Notes/Papers`, stores a processing record in `data/processing_records`, and moves the PDF to `PDFs/Ingested` unless you ask it to leave the PDF in Inbox. The note's `pdf` property links to the primary PDF and any paired supplement.
+3. A successful run creates a note in `Literature Notes/Papers`, stores a processing record in `data/processing_records`, and moves the PDF to `PDFs/Ingested` unless you ask it to leave the PDF in Inbox. The note's `pdf` property links to the primary PDF and any paired supplement. If processing fails, the skill flags that PDF above and future “next paper” runs skip it.
 4. Open the new note through the database and review it against its linked PDF.
 
 Copy a request into a Codex task:
@@ -41,7 +51,13 @@ Use $literature-intake to process this paper: PDFs/Inbox/example.pdf
 Use $literature-intake to process the next paper but leave the PDF in Inbox.
 ```
 
-An empty Inbox produces no file changes. Existing note names or same-name PDFs in `Ingested` stop intake rather than being overwritten. If a supplementary PDF arrives after its parent article was processed, ask Codex to use `$literature-intake` to attach that exact-matched SI to the existing note.
+After fixing a flagged source, ask:
+
+```text
+Use $literature-intake to retry this paper: PDFs/Inbox/example.pdf
+```
+
+An Inbox with no eligible primary PDF produces no new note. Existing note names or same-name PDFs in `Ingested` stop that package rather than being overwritten; the skill flags it and continues with another package on the next run. If a supplementary PDF arrives after its parent article was processed, ask Codex to use `$literature-intake` to attach that exact-matched SI to the existing note.
 
 For journal articles, the skill checks a local CSL-JSON Zotero export at `data/zotero-export.json`. If it is missing or unreadable, article intake stops before writing or moving files. If it is readable but has no confident match, intake can continue using metadata visible in the PDF and flags the note for review. Exports older than 30 days produce a stale warning. SI, textbooks, and theses skip Zotero lookup. The workflow does not use an external API or separate API billing.
 
@@ -71,7 +87,7 @@ Check the title, authors, year, venue, DOI, claims, numbers, figure suggestions,
 
 ## Scheduled intake
 
-A scheduled Codex task can check Inbox periodically. Give each run its own task context and ask it to process only the first eligible source package in filename order. Choose a frequency that leaves enough time so that runs don't overlap too much. Suggested task prompt:
+A scheduled Codex task can check Inbox periodically. Give each run its own task context and ask it to process only the first eligible source package in filename order. Flagged packages are skipped until their issue is fixed and they are retried. Choose a frequency that leaves enough time so that runs don't overlap too much. Suggested task prompt:
 
 ```text
 Use $literature-intake to process the next paper.
