@@ -127,7 +127,9 @@ Put a PDF in `PDFs/Inbox`. Filenames identify source types and pair supplementar
 
 Process textbooks and theses one chapter at a time whenever practical. This keeps the AI's context from being overwhelmed and keeps each note focused on one coherent source unit. Use two-digit chapter numbers so chapters sort correctly. Process a complete thesis only when explicitly requested and when the agent can read it adequately. Malformed reserved prefixes are reported and left untouched.
 
-In a Codex task for this project, ask:
+Next you may prompt your AI to use the literature-intake skill, using the model and reasoning level of your choice. I find using a lower tier model on light reasoning performs quite well for this workflow. Using less sophisticated models also performs faster and consumes allowance more conservatively without sacrificing summary quality. 
+
+Example prompts:
 
 ```text
 Use $literature-intake to inspect the Inbox and report what is waiting.
