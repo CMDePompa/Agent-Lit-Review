@@ -12,7 +12,7 @@ Disclaimer: This project is provided as a research workflow template. Review gen
 LitNote-Agent/
 ├── README.md                              # Setup, usage, and customization guide
 ├── LICENSE                                # MIT license
-├── .gitignore                             # Keeps private/source material out of Git
+├── .gitignore                             # Excludes local app state and generated content
 ├── .agents/
 │   └── skills/
 │       └── literature-intake/
@@ -28,16 +28,16 @@ LitNote-Agent/
 │   ├── Literature Database.base           # Obsidian Bases views
 │   ├── Templates/
 │   │   └── Literature Note Template.md    # Note template and properties
-│   └── Papers/                            # Generated notes (contents ignored by Git)
+│   └── Papers/                            # Generated literature notes
 ├── PDFs/
-│   ├── Inbox/                             # PDFs waiting for intake (ignored by Git)
-│   └── Ingested/                          # Processed PDFs (ignored by Git)
+│   ├── Inbox/                             # PDFs waiting for intake
+│   └── Ingested/                          # Processed PDFs
 └── data/
-    ├── zotero-export.json                 # Your local export (ignored by Git)
-    └── processing_records/                # Local provenance records (ignored by Git)
+    ├── zotero-export.json                 # Your Zotero export (add in Step 3)
+    └── processing_records/                # Intake provenance records
 ```
 
-The repository includes zero-byte `.gitkeep` placeholder files so the empty runtime folders are created when cloned. Git does not track empty directories, so without these placeholders a fresh clone would be missing `PDFs/Inbox`, `PDFs/Ingested`, `Literature Notes/Papers`, and `data/processing_records`. The placeholders contain no data and can remain in the repository; the actual contents of those folders stay local and are ignored by Git.
+The repository includes zero-byte `.gitkeep` placeholder files so a fresh clone contains the empty `PDFs/Inbox`, `PDFs/Ingested`, `Literature Notes/Papers`, and `data/processing_records` folders. Git does not track empty directories. The placeholders contain no data.
 
 ## What you need
 
@@ -58,7 +58,7 @@ Open the repository folder as an Obsidian vault and as a local project in Codex.
 
 ### Step 3: Add Zotero metadata
 
-If you want to process journal articles, export your Zotero library as **CSL JSON** and save it as `data/zotero-export.json`. This file is ignored by Git. Without a readable export, article intake stops before creating a note or moving a PDF. Textbook and thesis intake does not require Zotero.
+If you want to process journal articles, export your Zotero library as **CSL JSON** and save it as `data/zotero-export.json`. Without a readable export, article intake stops before creating a note or moving a PDF. Textbook and thesis intake does not require Zotero.
 
 ### Step 4: Customize the workflow
 
@@ -66,7 +66,7 @@ The included note fields and research vocabulary are designed for polymer scienc
 
 #### 4.1 Describe your field
 
-For private or unpublished project details, copy [`research-context.md`](./.agents/skills/literature-intake/references/research-context.md) to `research-context.local.md` in the same folder and edit the local copy. It is ignored by Git and takes precedence over the shareable template. Edit the tracked `research-context.md` only with context you are comfortable publishing. Explain what makes a source highly relevant, indirectly relevant, or unrelated to your research. The PDF remains the source for facts about the paper; these files only guide the relevance assessment and suggested topics.
+Edit the included [`research-context.md`](./.agents/skills/literature-intake/references/research-context.md) to describe your research questions, methods, measurements, and vocabulary. Explain what makes a source highly relevant, indirectly relevant, or unrelated to your work. The PDF remains the source for facts about the paper; this file guides only the relevance assessment and suggested topics.
 
 #### 4.2 Choose note properties
 
@@ -173,7 +173,7 @@ Then open the repository root in Claude Code and ask it to use the `literature-i
 
 Claude Code does not include Anthropic's pre-built PDF Agent Skill, so PDF-reading behavior depends on the tools available in that Claude Code environment. Test one disposable source first and ask Claude to leave it in Inbox. If the agent cannot inspect the complete PDF—including methods, results, figures, and limitations—stop rather than creating a partial note. Claude scheduling is also separate from Codex scheduled tasks; configure recurring runs using the automation mechanism provided by your chosen environment.
 
-The copied `.claude/skills` folder is intentionally not committed as a second copy of the workflow. If you edit the canonical skill later, repeat the copy so Claude Code receives the same version.
+If you edit the skill in `.agents/skills/literature-intake` later, repeat the copy so Claude Code receives the same version.
 
 ### Other local AI agents
 

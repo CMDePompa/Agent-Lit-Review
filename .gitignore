@@ -10,7 +10,7 @@ __pycache__/
 # Optional local Claude Code copy of the canonical skill
 .claude/skills/
 
-# Private local research context (takes precedence over the shareable template)
+# Ignore research context copies from older local setups
 .agents/skills/literature-intake/references/research-context.local.md
 
 # Source documents and generated user content
