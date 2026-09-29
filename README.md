@@ -66,7 +66,7 @@ The included note fields and research vocabulary are designed for polymer scienc
 
 #### 4.1 Describe your field
 
-Edit [`research-context.md`](./.agents/skills/literature-intake/references/research-context.md). Replace the polymer-specific questions, methods, measurements, and vocabulary with your own. Explain what makes a source highly relevant, indirectly relevant, or unrelated to your research. The PDF remains the source for facts about the paper; this file only guides the relevance assessment and suggested topics.
+For private or unpublished project details, copy [`research-context.md`](./.agents/skills/literature-intake/references/research-context.md) to `research-context.local.md` in the same folder and edit the local copy. It is ignored by Git and takes precedence over the shareable template. Edit the tracked `research-context.md` only with context you are comfortable publishing. Explain what makes a source highly relevant, indirectly relevant, or unrelated to your research. The PDF remains the source for facts about the paper; these files only guide the relevance assessment and suggested topics.
 
 #### 4.2 Choose note properties
 
@@ -125,7 +125,7 @@ Put a PDF in `PDFs/Inbox`. Filenames identify source types and pair supplementar
 - **Textbook chapters:** `TEXTBOOK - <Year> <Author> - <Book Title> - Ch <NN> - <Chapter Title>.pdf`
 - **Thesis chapters:** `THESIS - <Year> <Author> - <Thesis Title> - Ch <NN> - <Chapter Title>.pdf`
 
-Use two-digit chapter numbers so chapters sort correctly. Split textbooks and theses into chapter PDFs for chapter-level notes. Malformed reserved prefixes are reported and left untouched.
+Process textbooks and theses one chapter at a time whenever practical. This keeps the AI's context from being overwhelmed and keeps each note focused on one coherent source unit. Use two-digit chapter numbers so chapters sort correctly. Process a complete thesis only when explicitly requested and when the agent can read it adequately. Malformed reserved prefixes are reported and left untouched.
 
 In a Codex task for this project, ask:
 
