@@ -1,6 +1,6 @@
 ---
 name: literature-intake
-description: Inspect the literature Inbox; summarize journal papers, REVIEW-prefixed review articles, textbook chapters, theses, or reports into Obsidian notes; or attach an exact-matched supplementary PDF to an existing article note.
+description: Inspect the literature Inbox; summarize journal papers, reports and prefixed review articles, textbook chapters, or theses into Obsidian notes; or attach an exact-matched supplementary PDF to an existing article note.
 ---
 
 # Literature intake
