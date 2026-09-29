@@ -48,29 +48,104 @@ The repository includes zero-byte `.gitkeep` placeholder files so the empty runt
 
 ## Get started
 
-1. Download or clone this repository. Keep its folders together, including the hidden `.agents` folder that contains the skill.
-2. Open the repository folder as an Obsidian vault and as a local project in Codex. Start with the [Literature Dashboard](Literature%20Notes/Literature%20Dashboard.md) for the day-to-day instructions.
-3. Customize the note structure for your research domain following the guides outlined in the Customization Section below.
-4. If you want to process journal articles, export your Zotero library as **CSL JSON** and save it as `data/zotero-export.json`. This file is ignored by Git. Without a readable export, article intake stops before creating a note or moving a PDF. Textbook and thesis intake does not require Zotero.
-5. Put a PDF in `PDFs/Inbox`. In a Codex task for this project, ask:
+### Step 1: Download the project
 
-   ```text
-   Use $literature-intake to inspect the Inbox and report what is waiting.
-   ```
+Download or clone this repository. Keep its folders together, including the hidden `.agents` folder that contains the skill.
 
-   Then process one source:
+### Step 2: Open the project
 
-   ```text
-   Use $literature-intake to process this paper: PDFs/Inbox/example.pdf
-   ```
+Open the repository folder as an Obsidian vault and as a local project in Codex. Start with the [Literature Dashboard](Literature%20Notes/Literature%20Dashboard.md) for the day-to-day instructions.
 
-6. Open the new note in `Literature Notes/Papers` or through the [Literature Database](Literature%20Notes/Literature%20Database.base). Check its claims, metadata, numbers, and tags against the linked PDF. The note is an AI draft until you review it.
+### Step 3: Add Zotero metadata
 
-A successful run moves the PDF to `PDFs/Ingested`, unless you ask Codex to leave it in Inbox. The skill stops on file collisions instead of overwriting notes or PDFs. It creates a compact record in `data/processing_records`. The [Dashboard](Literature%20Notes/Literature%20Dashboard.md) has more prompts, filename examples, supplementary-file guidance, and review steps.
+If you want to process journal articles, export your Zotero library as **CSL JSON** and save it as `data/zotero-export.json`. This file is ignored by Git. Without a readable export, article intake stops before creating a note or moving a PDF. Textbook and thesis intake does not require Zotero.
 
-Review articles are a separate source type: name a journal review `REVIEW - <Year> <Author(s)> - <Article Title>.pdf`. It uses journal-article Zotero matching and an article-style note that identifies the work as a review.
+### Step 4: Customize the workflow
 
-The skill's own workflow version is stored separately in the processing record.
+The included note fields and research vocabulary are designed for polymer science. You can use them as-is or adapt them for another field. For example, an ecology project might use `study_organisms` and `habitats` in place of `polymer_system` and `morphologies`. Make changes in the following order so the skill, template, and database agree.
+
+#### 4.1 Describe your field
+
+Edit [`research-context.md`](./.agents/skills/literature-intake/references/research-context.md). Replace the polymer-specific questions, methods, measurements, and vocabulary with your own. Explain what makes a source highly relevant, indirectly relevant, or unrelated to your research. The PDF remains the source for facts about the paper; this file only guides the relevance assessment and suggested topics.
+
+#### 4.2 Choose note properties
+
+Open [`Literature Note Template.md`](Literature%20Notes/Templates/Literature%20Note%20Template.md). Its first block, between the `---` lines, contains the note's **properties**. Properties appear in Obsidian and supply the database columns.
+
+- Rename or replace field-specific properties. For example, change `polymer_system: []` to `study_organisms: []`.
+- Keep fields with multiple tags as lists ending in `[]` when empty. Keep a short description such as `context_summary: ""` as text.
+- Leave workflow fields such as `pdf`, `source_type`, `summary_status`, and `metadata_review_needed` in place unless you also plan to change the file-handling code.
+
+Then update [`note-schema.md`](./.agents/skills/literature-intake/references/note-schema.md): replace the old property names, define what each new field means, and give examples of suitable tags. Tell the skill to leave a field empty when the PDF does not support a value. If you change note section headings, update the headings in the template and schema together.
+
+The file helper also checks property names. In `scripts/literature_intake_io.py`, change `TAG_LIST_PROPERTIES` when you rename list fields and `TAG_PROPERTIES` when you change text tag fields. Update `scripts/tests/test_literature_intake_io.py` to cover the new names. A template edit by itself will not rename properties in notes already created; update older notes separately if they should use the new fields.
+
+#### 4.3 Show the fields in Obsidian
+
+Open [`Literature Database.base`](Literature%20Notes/Literature%20Database.base) in Obsidian. Its named **views** are different ways to show the same notes. You can change a view's visible columns with **Properties**, its order with **Sort**, and which notes it includes with **Filter**. The existing folder filter applies to every view, so all of them start with notes in `Literature Notes/Papers`. If you prefer editing the `.base` file directly, its `views` list holds the names, columns in `order`, and optional view-specific `filters`.
+
+To create a new view and add it to the [Dashboard](Literature%20Notes/Literature%20Dashboard.md):
+
+1. In the open database, click the view name at the top left and choose **Add view**. Give it a clear name, such as **Simulation Methods**.
+2. Under **Filter**, choose **This view** if the filter should apply only here; select a property such as `methodology`, a comparison, and a value. Choose **All views** only if every view should change. Use **Properties** to pick columns and **Sort** to order the results.
+3. In `Literature Notes/Literature Dashboard.md`, add a list item such as `- [[Literature Database.base|Simulation Methods]] — papers using the selected methods.` The part before `|` is the file to open; the part after `|` is only the displayed label. Clicking it opens the database, where the reader selects **Simulation Methods** from the view menu. It does **not** switch views automatically.
+4. If you want that exact view displayed inside the Dashboard, add `![[Literature Database.base#Simulation Methods]]` on its own line. The `!` makes it an embed, and the text after `#` must match the view name. If you rename or delete the view, update both the list label and any embed.
+
+The same link rule applies to the Dashboard's template and README links: update their targets if you move or rename files, then click them in Obsidian to check that they work. [Obsidian's Bases view guide](https://obsidian.md/help/bases/views) has screenshots and the current menu instructions.
+
+#### 4.4 Update the skill instructions
+
+Open [`SKILL.md`](./.agents/skills/literature-intake/SKILL.md). Its `description` tells Codex when this skill is relevant; change it if people in your field will use different words for their sources or intake requests. Update the body only where the workflow itself needs to change. Keep the frontmatter limited to `name` and `description`, and keep the PDF-reading, file-collision, one-source-per-run, and human-owned-section safeguards.
+
+The skill has a few focused reference files:
+
+| File | Change it when... |
+| --- | --- |
+| [`source-types.md`](./.agents/skills/literature-intake/references/source-types.md) | You want different source types, chapter rules, or note outlines. Also update the matching rules and tests in `literature_intake_io.py`. |
+| [`si-attachment.md`](./.agents/skills/literature-intake/references/si-attachment.md) | You want different rules for supplementary PDFs. Update matching guidance in the Dashboard and skill too. |
+| [`zotero-metadata.md`](./.agents/skills/literature-intake/references/zotero-metadata.md) | You want to change the article metadata policy. Update [`zotero_metadata.py`](scripts/zotero_metadata.py), SKILL.md, tests, and the Dashboard as well. |
+
+The current Zotero rule is: missing or unreadable export stops **article** intake; a readable export with no confident match allows the note to use only metadata visible in the PDF, with a warning. An export older than 30 days gets a stale warning. Supplementary PDFs, textbooks, and theses skip the lookup.
+
+#### 4.5 Check your customization
+
+Run `python -m unittest discover -s scripts/tests` from the repository folder. You can also ask Codex, “Validate the structure and frontmatter of the project-local `literature-intake` skill.” Open the Dashboard and Database in Obsidian and test their links and views.
+
+### Step 5: Add a source package
+
+Put a PDF in `PDFs/Inbox`. Filenames identify source types and pair supplementary information; the scientific content and provisional metadata must still come from the PDF itself.
+
+- **Articles:** `<Year> <Author(s)> - <Article Title>.pdf`
+  - Example: `1993 Amundson et al. - Alignment of lamellar block copolymer microstructure.pdf`
+- **Review articles:** `REVIEW - <Year> <Author(s)> - <Article Title>.pdf`
+  - These use `source_type: review`, an article-style note, and Zotero article matching.
+- **Supplementary information:** prefix the entire matching article filename with `SI - `
+  - Example: `SI - 1993 Amundson et al. - Alignment of lamellar block copolymer microstructure.pdf`
+  - An exact pair can be processed together. SI is not a separate literature note.
+- **Textbook chapters:** `TEXTBOOK - <Year> <Author> - <Book Title> - Ch <NN> - <Chapter Title>.pdf`
+- **Thesis chapters:** `THESIS - <Year> <Author> - <Thesis Title> - Ch <NN> - <Chapter Title>.pdf`
+
+Use two-digit chapter numbers so chapters sort correctly. Split textbooks and theses into chapter PDFs for chapter-level notes. Malformed reserved prefixes are reported and left untouched.
+
+In a Codex task for this project, ask:
+
+```text
+Use $literature-intake to inspect the Inbox and report what is waiting.
+```
+
+Then process one source:
+
+```text
+Use $literature-intake to process this paper: PDFs/Inbox/example.pdf
+```
+
+A successful run moves the PDF to `PDFs/Ingested`, unless you ask Codex to leave it in Inbox. The skill stops on file collisions instead of overwriting notes or PDFs and creates a compact record in `data/processing_records`.
+
+### Step 6: Review the generated note
+
+Open the new note in `Literature Notes/Papers` or through the [Literature Database](Literature%20Notes/Literature%20Database.base). Check its claims, metadata, numbers, figure suggestions, and tags against the linked PDF. The note is an AI draft until you review it. Confirm that the `pdf` property opens the source and that **My Notes**, **Figure Screenshots**, and **Connections to Other Papers** remain available for your own writing.
+
+The [Dashboard](Literature%20Notes/Literature%20Dashboard.md) has more prompts, supplementary-file guidance, and review steps. The skill's workflow version is stored separately in the processing record.
 
 ## Using other AI agents
 
@@ -118,57 +193,6 @@ Regardless of the model, keep the same safety rules: process one source package 
 The skill processes at most **one source package per request** by default. A package is one primary PDF plus its exact-matched supplementary PDF, if there is one. Reading the methods, results, figures, and limitations of many papers in one request can crowd the task's working context and make it harder to keep claims tied to the right source. One package per run also makes each note and file move easier to check or retry if something fails.
 
 You can explicitly ask for multiple papers, but for a large Inbox, use separate Codex tasks that each process one package. Repeating “process the next paper” many times in the **same** long chat can still accumulate context, even though each request handles only one paper. A scheduled workflow can automate processing multiple packages in separate runs; the Dashboard includes a suggested prompt. Start with a few sources to evaluate and customize the workflow before processing an entire library.
-
-## Customization
-
-You can start by changing the research context and tag names. For example, an ecology project might use `study_organisms` and `habitats` in place of the current `polymer_system` and `morphologies` fields. Make changes in this order so the skill, template, and database agree.
-
-### 1. Describe your field
-
-Edit [`research-context.md`](./.agents/skills/literature-intake/references/research-context.md). Replace the polymer-specific questions, methods, measurements, and vocabulary with your own. Explain what makes a source highly relevant, indirectly relevant, or unrelated to your research. The PDF remains the source for facts about the paper; this file only guides the relevance assessment and suggested topics.
-
-### 2. Choose note properties
-
-Open [`Literature Note Template.md`](Literature%20Notes/Templates/Literature%20Note%20Template.md). Its first block, between the `---` lines, contains the note's **properties**. Properties appear in Obsidian and supply the database columns.
-
-- Rename or replace field-specific properties. For example, change `polymer_system: []` to `study_organisms: []`.
-- Keep fields with multiple tags as lists ending in `[]` when empty. Keep a short description such as `context_summary: ""` as text.
-- Leave workflow fields such as `pdf`, `source_type`, `summary_status`, and `metadata_review_needed` in place unless you also plan to change the file-handling code.
-
-Then update [`note-schema.md`](./.agents/skills/literature-intake/references/note-schema.md): replace the old property names, define what each new field means, and give examples of suitable tags. Tell the skill to leave a field empty when the PDF does not support a value. If you change note section headings, update the headings in the template and schema together.
-
-The file helper also checks property names. In `scripts/literature_intake_io.py`, change `TAG_LIST_PROPERTIES` when you rename list fields and `TAG_PROPERTIES` when you change text tag fields. Update `scripts/tests/test_literature_intake_io.py` to cover the new names. A template edit by itself will not rename properties in notes already created; update older notes separately if they should use the new fields.
-
-### 3. Show the fields in Obsidian
-
-Open [`Literature Database.base`](Literature%20Notes/Literature%20Database.base) in Obsidian. Its named **views** are different ways to show the same notes. You can change a view's visible columns with **Properties**, its order with **Sort**, and which notes it includes with **Filter**. The existing folder filter applies to every view, so all of them start with notes in `Literature Notes/Papers`. If you prefer editing the `.base` file directly, its `views` list holds the names, columns in `order`, and optional view-specific `filters`.
-
-To create a new view and add it to the [Dashboard](Literature%20Notes/Literature%20Dashboard.md):
-
-1. In the open database, click the view name at the top left and choose **Add view**. Give it a clear name, such as **Simulation Methods**.
-2. Under **Filter**, choose **This view** if the filter should apply only here; select a property such as `methodology`, a comparison, and a value. Choose **All views** only if every view should change. Use **Properties** to pick columns and **Sort** to order the results.
-3. In `Literature Notes/Literature Dashboard.md`, add a list item such as `- [[Literature Database.base|Simulation Methods]] — papers using the selected methods.` The part before `|` is the file to open; the part after `|` is only the displayed label. Clicking it opens the database, where the reader selects **Simulation Methods** from the view menu. It does **not** switch views automatically.
-4. If you want that exact view displayed inside the Dashboard, add `![[Literature Database.base#Simulation Methods]]` on its own line. The `!` makes it an embed, and the text after `#` must match the view name. If you rename or delete the view, update both the list label and any embed.
-
-The same link rule applies to the Dashboard's template and README links: update their targets if you move or rename files, then click them in Obsidian to check that they work. [Obsidian's Bases view guide](https://obsidian.md/help/bases/views) has screenshots and the current menu instructions.
-
-### 4. Update the skill instructions
-
-Open [`SKILL.md`](./.agents/skills/literature-intake/SKILL.md). Its `description` tells Codex when this skill is relevant; change it if people in your field will use different words for their sources or intake requests. Update the body only where the workflow itself needs to change. Keep the frontmatter limited to `name` and `description`, and keep the PDF-reading, file-collision, one-source-per-run, and human-owned-section safeguards.
-
-The skill has a few focused reference files:
-
-| File | Change it when... |
-| --- | --- |
-| [`source-types.md`](./.agents/skills/literature-intake/references/source-types.md) | You want different source types, chapter rules, or note outlines. Also update the matching rules and tests in `literature_intake_io.py`. |
-| [`si-attachment.md`](./.agents/skills/literature-intake/references/si-attachment.md) | You want different rules for supplementary PDFs. Update matching guidance in the Dashboard and skill too. |
-| [`zotero-metadata.md`](./.agents/skills/literature-intake/references/zotero-metadata.md) | You want to change the article metadata policy. Update [`zotero_metadata.py`](scripts/zotero_metadata.py), SKILL.md, tests, and the Dashboard as well. |
-
-The current Zotero rule is: missing or unreadable export stops **article** intake; a readable export with no confident match allows the note to use only metadata visible in the PDF, with a warning. An export older than 30 days gets a stale warning. Supplementary PDFs, textbooks, and theses skip the lookup.
-
-### Check your changes
-
-Run `python -m unittest discover -s scripts/tests` from the repository folder. You can also ask Codex, “Validate the structure and frontmatter of the project-local `literature-intake` skill.” Open the Dashboard and Database in Obsidian and test their links and views. For a first intake check, use one disposable PDF and ask Codex to leave it in Inbox. Confirm the new properties appear, the `pdf` property opens the source, and the draft preserves **My Notes**, **Figure Screenshots**, and **Connections to Other Papers** for your own writing.
 
 ## License
 
