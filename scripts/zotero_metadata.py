@@ -115,7 +115,8 @@ def lookup(request, export_path=DEFAULT_EXPORT, now=None):
                 "warnings": ["Zotero metadata lookup was not attempted because no title could be established from the PDF."]}
     status = inspect_export(export_path, now=now)
     if not status["available"]:
-        return {**status, "metadata_review_needed": True, "reason": "Article processing must stop until a readable Zotero export is available."}
+        return {**status, "metadata_source": "PDF", "metadata_review_needed": True,
+                "reason": "Continuing with metadata visible in the PDF because no readable Zotero export is available."}
 
     eligible = [item for item in status["items"] if str(item.get("type") or item.get("itemType") or "").casefold() in ARTICLE_TYPES]
     doi = normalize_doi(request.get("doi"))
@@ -214,7 +215,7 @@ def main(argv=None):
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(rendered, encoding="utf-8")
-    return 0 if result.get("available") or result.get("status") in {"matched", "skipped"} else 2
+    return 0
 
 
 if __name__ == "__main__":

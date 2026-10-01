@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import literature_intake_io as intake
 import zotero_metadata
 
@@ -51,7 +51,7 @@ class IntakeFileTests(unittest.TestCase):
         self.assertIn("Unreadable PDF", dashboard.read_text(encoding="utf-8"))
         self.assertIn("My own section stays here.", dashboard.read_text(encoding="utf-8"))
         self.assertTrue(first.exists())
-        self.assertEqual(json.loads((self.root / "data" / "intake_failures.json").read_text(encoding="utf-8"))["items"]["a.pdf"]["reason"],
+        self.assertEqual(json.loads((self.root / "data" / "tmp" / "intake_failures.json").read_text(encoding="utf-8"))["items"]["a.pdf"]["reason"],
                          "Unreadable PDF; replace it with a valid export.")
 
     def test_changed_pdf_requeues_and_clears_dashboard_flag(self):
@@ -69,6 +69,7 @@ class IntakeFileTests(unittest.TestCase):
         self.assertEqual(intake.inspect_queue(self.root)["eligible"], [])
         intake.retry_pdf(self.pdf, self.root)
         self.assertEqual(intake.inspect_queue(self.root)["eligible"], ["paper.pdf"])
+        self.assertFalse((self.root / "data" / "tmp" / "intake_failures.json").exists())
         intake.defer_pdf(self.pdf, "Metadata export missing.", self.root)
         intake.commit(self.pdf, "paper", self.note_text, no_move=True, root=self.root)
         queue = intake.inspect_queue(self.root)
@@ -76,6 +77,40 @@ class IntakeFileTests(unittest.TestCase):
         self.assertEqual(queue["already_processed"], ["paper.pdf"])
         self.assertEqual(queue["eligible"], [])
         self.assertIn("No source packages are currently flagged.", dashboard.read_text(encoding="utf-8"))
+        self.assertFalse((self.root / "data" / "tmp" / "intake_failures.json").exists())
+
+    def test_missing_zotero_export_falls_back_to_pdf_and_cleans_temporary_file(self):
+        lookup = zotero_metadata.lookup(
+            {"source_type": "paper", "title": "Visible PDF title", "authors": ["A. Author"], "year": 2024},
+            export_path=self.root / "data" / "missing-zotero-export.json",
+        )
+        self.assertEqual(lookup["status"], "unavailable")
+        self.assertEqual(lookup["metadata_source"], "PDF")
+        self.assertTrue(lookup["metadata_review_needed"])
+        temporary = self.root / "data" / "tmp" / "draft.md"
+        temporary.parent.mkdir(parents=True)
+        temporary.write_text(self.note_text, encoding="utf-8")
+        result = intake.commit(
+            self.pdf, "paper", temporary.read_text(encoding="utf-8"), no_move=True,
+            metadata_lookup=lookup, temporary_files=[temporary], root=self.root,
+        )
+        saved = (self.root / result["generated_note_path"]).read_text(encoding="utf-8")
+        self.assertEqual(intake._frontmatter_value(saved, "metadata_source"), "PDF")
+        self.assertEqual(intake._frontmatter_value(saved, "metadata_review_needed"), "true")
+        self.assertIn("was not found", result["warnings"][0])
+        self.assertFalse(temporary.exists())
+
+    def test_unreadable_zotero_export_uses_same_soft_fallback(self):
+        export = self.root / "data" / "zotero-export.json"
+        export.parent.mkdir(parents=True)
+        export.write_text("not valid JSON", encoding="utf-8")
+        lookup = zotero_metadata.lookup(
+            {"source_type": "paper", "title": "Visible PDF title"}, export_path=export,
+        )
+        self.assertEqual(lookup["status"], "unavailable")
+        self.assertEqual(lookup["metadata_source"], "PDF")
+        self.assertTrue(lookup["metadata_review_needed"])
+        self.assertIn("could not be read", lookup["warnings"][0])
 
     def test_existing_note_collision(self):
         note = self.root / "Literature Notes" / "Papers" / "paper.md"

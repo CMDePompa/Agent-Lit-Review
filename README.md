@@ -17,12 +17,15 @@ LitNote-Agent/
 │   └── skills/
 │       └── literature-intake/
 │           ├── SKILL.md                   # Main Codex workflow
-│           └── references/                # Source rules, schema, and research context
+│           ├── note-schema.md             # Note fields and required sections
+│           ├── research-context.md        # Project-specific relevance context
+│           ├── si-attachment.md           # Separated supplementary-PDF workflow
+│           ├── source-types.md            # Paper, review, textbook, and thesis rules
+│           └── zotero-metadata.md         # Optional local metadata policy
 ├── scripts/
 │   ├── literature_intake_io.py            # Safe file operations and provenance
 │   ├── zotero_metadata.py                 # Local CSL-JSON metadata matching
-│   └── tests/
-│       └── test_literature_intake_io.py   # Workflow regression tests
+│   └── test_literature_intake_io.py       # Workflow regression tests
 ├── Literature Notes/
 │   ├── Literature Dashboard.md            # Obsidian quick-start dashboard
 │   ├── Literature Database.base           # Obsidian Bases views
@@ -34,10 +37,11 @@ LitNote-Agent/
 │   └── Ingested/                          # Processed PDFs
 └── data/
     ├── zotero-export.json                 # Your Zotero export (add in Step 3)
+    ├── tmp/                               # Local scratch files and unresolved flags
     └── processing_records/                # Intake provenance records
 ```
 
-The repository includes zero-byte `.gitkeep` placeholder files so a fresh clone contains the empty `PDFs/Inbox`, `PDFs/Ingested`, `Literature Notes/Papers`, and `data/processing_records` folders. Git does not track empty directories. The placeholders contain no data.
+The repository includes zero-byte `.gitkeep` placeholder files so a fresh clone contains the empty `PDFs/Inbox`, `PDFs/Ingested`, `Literature Notes/Papers`, `data/tmp`, and `data/processing_records` folders. Git does not track empty directories. The placeholders contain no data.
 
 ## What you need
 
@@ -58,7 +62,7 @@ Open the repository folder as an Obsidian vault and as a local project in Codex.
 
 ### Step 3: Add Zotero metadata
 
-If you want to process journal articles, export your Zotero library as **CSL JSON** and save it as `data/zotero-export.json`. Without a readable export, article intake stops before creating a note or moving a PDF. Textbook and thesis intake does not require Zotero.
+Zotero metadata is optional. To use it for journal articles, export your Zotero library as **CSL JSON** and save it as `data/zotero-export.json`. Without a readable export, intake continues with PDF-visible metadata, sets `metadata_source: "PDF"` and `metadata_review_needed: true`, and records a warning. Textbook and thesis intake does not use Zotero.
 
 ### Step 4: Customize the workflow
 
@@ -66,7 +70,7 @@ The included note fields and research vocabulary are designed for polymer scienc
 
 #### 4.1 Describe your field
 
-Edit the included [`research-context.md`](./.agents/skills/literature-intake/references/research-context.md) to describe your research questions, methods, measurements, and vocabulary. Explain what makes a source highly relevant, indirectly relevant, or unrelated to your work. The PDF remains the source for facts about the paper; this file guides only the relevance assessment and suggested topics.
+Edit the included [`research-context.md`](./.agents/skills/literature-intake/research-context.md) to describe your research questions, methods, measurements, and vocabulary. Explain what makes a source highly relevant, indirectly relevant, or unrelated to your work. The PDF remains the source for facts about the paper; this file guides only the relevance assessment and suggested topics.
 
 #### 4.2 Choose note properties
 
@@ -76,9 +80,9 @@ Open [`Literature Note Template.md`](Literature%20Notes/Templates/Literature%20N
 - Keep fields with multiple tags as lists ending in `[]` when empty. Keep a short description such as `context_summary: ""` as text.
 - Leave workflow fields such as `pdf`, `source_type`, `summary_status`, and `metadata_review_needed` in place unless you also plan to change the file-handling code.
 
-Then update [`note-schema.md`](./.agents/skills/literature-intake/references/note-schema.md): replace the old property names, define what each new field means, and give examples of suitable tags. Tell the skill to leave a field empty when the PDF does not support a value. If you change note section headings, update the headings in the template and schema together.
+Then update [`note-schema.md`](./.agents/skills/literature-intake/note-schema.md): replace the old property names, define what each new field means, and give examples of suitable tags. Tell the skill to leave a field empty when the PDF does not support a value. If you change note section headings, update the headings in the template and schema together.
 
-The file helper also checks property names. In `scripts/literature_intake_io.py`, change `TAG_LIST_PROPERTIES` when you rename list fields and `TAG_PROPERTIES` when you change text tag fields. Update `scripts/tests/test_literature_intake_io.py` to cover the new names. A template edit by itself will not rename properties in notes already created; update older notes separately if they should use the new fields.
+The file helper also checks property names. In `scripts/literature_intake_io.py`, change `TAG_LIST_PROPERTIES` when you rename list fields and `TAG_PROPERTIES` when you change text tag fields. Update `scripts/test_literature_intake_io.py` to cover the new names. A template edit by itself will not rename properties in notes already created; update older notes separately if they should use the new fields.
 
 #### 4.3 Show the fields in Obsidian
 
@@ -101,15 +105,15 @@ The skill has a few focused reference files:
 
 | File | Change it when... |
 | --- | --- |
-| [`source-types.md`](./.agents/skills/literature-intake/references/source-types.md) | You want different source types, chapter rules, or note outlines. Also update the matching rules and tests in `literature_intake_io.py`. |
-| [`si-attachment.md`](./.agents/skills/literature-intake/references/si-attachment.md) | You want different rules for supplementary PDFs. Update matching guidance in the Dashboard and skill too. |
-| [`zotero-metadata.md`](./.agents/skills/literature-intake/references/zotero-metadata.md) | You want to change the article metadata policy. Update [`zotero_metadata.py`](scripts/zotero_metadata.py), SKILL.md, tests, and the Dashboard as well. |
+| [`source-types.md`](./.agents/skills/literature-intake/source-types.md) | You want different source types, chapter rules, or note outlines. Also update the matching rules and tests in `literature_intake_io.py`. |
+| [`si-attachment.md`](./.agents/skills/literature-intake/si-attachment.md) | You want different rules for supplementary PDFs. Update matching guidance in the Dashboard and skill too. |
+| [`zotero-metadata.md`](./.agents/skills/literature-intake/zotero-metadata.md) | You want to change the article metadata policy. Update [`zotero_metadata.py`](scripts/zotero_metadata.py), SKILL.md, tests, and the Dashboard as well. |
 
-The current Zotero rule is: missing or unreadable export stops **article** intake; a readable export with no confident match allows the note to use only metadata visible in the PDF, with a warning. An export older than 30 days gets a stale warning. Supplementary PDFs, textbooks, and theses skip the lookup.
+The current Zotero rule is: a missing, unreadable, or unmatched export does not stop **article** intake. The note uses only metadata visible in the PDF, sets `metadata_source: "PDF"` and `metadata_review_needed: true`, and records a warning. An export older than 30 days gets a stale warning. Supplementary PDFs, textbooks, and theses skip the lookup.
 
 #### 4.5 Check your customization
 
-Run `python -m unittest discover -s scripts/tests` from the repository folder. You can also ask Codex, “Validate the structure and frontmatter of the project-local `literature-intake` skill.” Open the Dashboard and Database in Obsidian and test their links and views.
+Run `python -m unittest scripts/test_literature_intake_io.py` from the repository folder. You can also ask Codex, “Validate the structure and frontmatter of the project-local `literature-intake` skill.” Open the Dashboard and Database in Obsidian and test their links and views.
 
 ### Step 5: Add a source package
 
@@ -143,7 +147,7 @@ Use $literature-intake to process this paper: PDFs/Inbox/example.pdf
 
 A successful run moves the PDF to `PDFs/Ingested`, unless you ask Codex to leave it in Inbox. The skill stops on file collisions instead of overwriting notes or PDFs and creates a compact record in `data/processing_records`. If a source package cannot be processed, the skill leaves its PDFs in Inbox, records the reason under **Needs attention** on the [Dashboard](Literature%20Notes/Literature%20Dashboard.md), and skips that package on future “next paper” runs. The next run can continue with another eligible package.
 
-After fixing the issue, ask the skill to retry the flagged filename, for example, `Use $literature-intake to retry this paper: PDFs/Inbox/example.pdf`. Editing or replacing the PDF also makes it eligible again on the next Inbox inspection. The Dashboard shows the reported reason so you can tell what needs fixing; the failure queue is stored locally in `data/intake_failures.json`.
+After fixing the issue, ask the skill to retry the flagged filename, for example, `Use $literature-intake to retry this paper: PDFs/Inbox/example.pdf`. Editing or replacing the PDF also makes it eligible again on the next Inbox inspection. The Dashboard shows the reported reason so you can tell what needs fixing; the failure queue is stored locally in `data/tmp/intake_failures.json` and is deleted automatically when no flags remain.
 
 ### Step 6: Review the generated note
 

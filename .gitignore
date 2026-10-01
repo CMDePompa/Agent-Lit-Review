@@ -4,29 +4,40 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 
-# Local Obsidian state and preferences
+# Local editor and agent state
 .obsidian/
-
-# Optional local Claude Code copy of the canonical skill
+.codex/
 .claude/skills/
+.agents/skills/literature-intake/research-context.local.md
 
-# Ignore research context copies from older local setups
-.agents/skills/literature-intake/references/research-context.local.md
-
-# Source documents and generated user content
+# Personal research library: retain only directory placeholders
 PDFs/**
 !PDFs/Inbox/
 !PDFs/Ingested/
+PDFs/Inbox/*
 !PDFs/Inbox/.gitkeep
+PDFs/Ingested/*
 !PDFs/Ingested/.gitkeep
-Literature Notes/Papers/**
+Literature Notes/Papers/*
 !Literature Notes/Papers/.gitkeep
 
-# Local metadata and processing history
+# Local metadata, temporary state, and provenance
 data/zotero-export.json
 data/intake_failures.json
-data/processing_records/**
+data/tmp/*
+!data/tmp/.gitkeep
+data/processing_records/*
 !data/processing_records/.gitkeep
 
-# Scratch output
-tmp/
+# Legacy root scratch directory (data/tmp/ is canonical)
+/tmp/
+
+# Operating-system metadata
+.DS_Store
+**/.DS_Store
+._*
+**/._*
+Thumbs.db
+**/Thumbs.db
+Desktop.ini
+**/Desktop.ini

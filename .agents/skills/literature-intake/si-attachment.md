@@ -18,7 +18,7 @@ Draft one `## Supplementary Information Used` section with these exact fields:
 - **Material consulted:** Sections, figures, tables, equations, or pages read
 - **Important contributions to this note:** SI-supported clarifications, methods, parameters, results, and qualifications; label SI-only claims as supplementary evidence
 
-Prepare an update JSON with `summary_scope`, `page_scope`, and optional exact text replacements for obsolete generated wording, for example:
+Prepare the section draft and update JSON inside `data/tmp/`. The helper deletes both after a successful attachment. The update JSON contains `summary_scope`, `page_scope`, and optional exact text replacements for obsolete generated wording, for example:
 
 ```json
 {
@@ -41,7 +41,7 @@ Each replacement must match exactly once and must not touch a human-owned sectio
 Run:
 
 ```text
-python scripts/literature_intake_io.py attach-supplementary "<primary path>" "PDFs/Inbox/SI - <primary filename>" "<supplementary-section.md>" "<update.json>"
+python scripts/literature_intake_io.py attach-supplementary "<primary path>" "PDFs/Inbox/SI - <primary filename>" "data/tmp/<supplementary-section.md>" "data/tmp/<update.json>"
 ```
 
 Add `--no-move` when requested. Do not attach an SI that was already incorporated, do not overwrite a prior SI, and do not infer a pairing from similar titles.

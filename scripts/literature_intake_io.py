@@ -27,7 +27,7 @@ TEXTBOOK_SECTIONS = (
     "Important Examples", "Relevance to My Research", "Figures Worth Reviewing", "Suggested Topics",
     "My Notes", "Figure Screenshots", "Connections to Other Papers",
 )
-VERSION = "literature-intake-v2"
+VERSION = "literature-intake-v3"
 TAG_LIST_PROPERTIES = (
     "research_topics", "methodology", "evidence_type", "polymer_system", "morphologies", "paper_role",
 )
@@ -59,7 +59,7 @@ def resolve_pdf(value, root=ROOT):
 
 
 def _failure_path(root):
-    return root / "data" / "intake_failures.json"
+    return root / "data" / "tmp" / "intake_failures.json"
 
 
 def _load_failures(root):
@@ -116,13 +116,16 @@ def _save_failures(items, root):
     dashboard = root / "Literature Notes" / "Literature Dashboard.md"
     original_dashboard, updated_dashboard = _dashboard_failure_text(dashboard, items)
     original_state = path.read_text(encoding="utf-8") if path.exists() else None
-    updated_state = json.dumps({"version": 1, "items": items}, ensure_ascii=False, indent=2) + "\n"
-    staged_state = _stage(path.parent, updated_state)
+    updated_state = json.dumps({"version": 1, "items": items}, ensure_ascii=False, indent=2) + "\n" if items else None
+    staged_state = _stage(path.parent, updated_state) if updated_state is not None else None
     staged_dashboard = _stage(dashboard.parent, updated_dashboard)
     try:
         if dashboard.read_text(encoding="utf-8") != original_dashboard or (path.read_text(encoding="utf-8") if path.exists() else None) != original_state:
             raise RuntimeError("Intake state or Dashboard changed during update")
-        os.replace(staged_state, path)
+        if staged_state is not None:
+            os.replace(staged_state, path)
+        else:
+            path.unlink(missing_ok=True)
         try:
             os.replace(staged_dashboard, dashboard)
         except Exception:
@@ -132,7 +135,8 @@ def _save_failures(items, root):
                 os.replace(_stage(path.parent, original_state), path)
             raise
     finally:
-        staged_state.unlink(missing_ok=True)
+        if staged_state is not None:
+            staged_state.unlink(missing_ok=True)
         staged_dashboard.unlink(missing_ok=True)
 
 
@@ -681,7 +685,32 @@ def _stage(directory, content):
         return Path(stream.name)
 
 
-def commit(pdf_value, note_name, markdown, *, supplementary_pdf_value=None, no_move=False, model=None, tier=None, warnings=None, metadata_lookup=None, root=ROOT):
+def _temporary_file(value, root=ROOT):
+    """Resolve a workflow scratch file and require it to live under data/tmp."""
+    temporary_root = (root / "data" / "tmp").resolve()
+    supplied = Path(value)
+    candidate = (supplied if supplied.is_absolute() else root / supplied).resolve()
+    if not candidate.is_relative_to(temporary_root) or not candidate.is_file():
+        raise ValueError("Temporary workflow files must be existing files inside data/tmp")
+    return candidate
+
+
+def _cleanup_temporary_files(values, root=ROOT):
+    removed = []
+    seen = set()
+    for value in values:
+        if value is None:
+            continue
+        path = _temporary_file(value, root)
+        if path in seen:
+            continue
+        seen.add(path)
+        path.unlink()
+        removed.append(path.relative_to(root).as_posix())
+    return removed
+
+
+def commit(pdf_value, note_name, markdown, *, supplementary_pdf_value=None, no_move=False, model=None, tier=None, warnings=None, metadata_lookup=None, temporary_files=(), root=ROOT):
     model = model.strip() or None if model is not None else None
     tier = tier.strip() or None if tier is not None else None
     pdf = resolve_pdf(pdf_value, root)
@@ -696,11 +725,18 @@ def commit(pdf_value, note_name, markdown, *, supplementary_pdf_value=None, no_m
     pdf_property = [_obsidian_pdf_link(result_pdf, root)] + ([_obsidian_pdf_link(result_supplementary, root)] if result_supplementary else [])
     markdown = _set_or_add_frontmatter(markdown, "pdf", pdf_property)
     markdown = _set_or_add_frontmatter(markdown, "supplementary_pdf", result_supplementary.relative_to(root).as_posix() if result_supplementary else None)
+    if metadata_lookup and metadata_lookup.get("status") in {"unavailable", "not_found", "ambiguous", "conflict"}:
+        markdown = _set_or_add_frontmatter(markdown, "metadata_source", "PDF")
+        markdown = _set_or_add_frontmatter(markdown, "metadata_review_needed", True)
     markdown = _remove_obsolete_note_properties(markdown)
     markdown = _set_default_tag_properties(markdown)
     markdown = _remove_legacy_pdf_body_links(markdown)
     validate_note(markdown)
     timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    combined_warnings = list(warnings or [])
+    for warning in (metadata_lookup or {}).get("warnings", []):
+        if warning not in combined_warnings:
+            combined_warnings.append(warning)
     provenance = {
         "source_pdf_filename": pdf.name,
         "source_pdf_filenames": [pdf.name] + ([supplementary.name] if supplementary else []),
@@ -714,7 +750,7 @@ def commit(pdf_value, note_name, markdown, *, supplementary_pdf_value=None, no_m
         "skill_workflow_version": VERSION,
         "pdf_sha256": sha256(pdf),
         "supplementary_pdf_sha256": sha256(supplementary) if supplementary else None,
-        "warnings": warnings or [],
+        "warnings": combined_warnings,
         "success_status": "success",
     }
     if metadata_lookup:
@@ -761,6 +797,7 @@ def commit(pdf_value, note_name, markdown, *, supplementary_pdf_value=None, no_m
             if temp is not None:
                 temp.unlink(missing_ok=True)
     _clear_failure(pdf.name, root)
+    _cleanup_temporary_files(temporary_files, root)
     return provenance
 
 
@@ -791,7 +828,9 @@ def main():
     save.add_argument("--model")
     save.add_argument("--tier")
     save.add_argument("--warnings-json", default="[]")
+    save.add_argument("--warnings-json-file", type=Path)
     save.add_argument("--metadata-lookup-file", type=Path)
+    save.add_argument("--temporary-file", type=Path, action="append", default=[])
     attach = sub.add_parser("attach-supplementary")
     attach.add_argument("primary_pdf")
     attach.add_argument("supplementary_pdf")
@@ -816,12 +855,24 @@ def main():
                           "existing_note": str(note), "processing_record": str(record),
                           "resulting_supplementary_pdf": str(ROOT / "PDFs" / "Ingested" / supplementary.name)}, ensure_ascii=False, indent=2))
     elif args.command == "commit":
-        metadata_lookup = json.loads(args.metadata_lookup_file.read_text(encoding="utf-8")) if args.metadata_lookup_file else None
-        print(json.dumps(commit(args.pdf, args.note_name, args.draft_file.read_text(encoding="utf-8"), supplementary_pdf_value=args.supplementary_pdf, no_move=args.no_move, model=args.model, tier=args.tier, warnings=json.loads(args.warnings_json), metadata_lookup=metadata_lookup), ensure_ascii=False, indent=2))
+        draft_file = _temporary_file(args.draft_file)
+        metadata_file = _temporary_file(args.metadata_lookup_file) if args.metadata_lookup_file else None
+        warnings_file = _temporary_file(args.warnings_json_file) if args.warnings_json_file else None
+        if warnings_file and args.warnings_json != "[]":
+            raise ValueError("Use either --warnings-json or --warnings-json-file, not both")
+        metadata_lookup = json.loads(metadata_file.read_text(encoding="utf-8")) if metadata_file else None
+        warnings = json.loads(warnings_file.read_text(encoding="utf-8")) if warnings_file else json.loads(args.warnings_json)
+        cleanup = [draft_file, metadata_file, warnings_file] + [_temporary_file(path) for path in args.temporary_file]
+        result = commit(args.pdf, args.note_name, draft_file.read_text(encoding="utf-8"), supplementary_pdf_value=args.supplementary_pdf, no_move=args.no_move, model=args.model, tier=args.tier, warnings=warnings, metadata_lookup=metadata_lookup, temporary_files=cleanup)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
     elif args.command == "attach-supplementary":
-        section = args.section_file.read_text(encoding="utf-8")
-        update_spec = json.loads(args.update_json.read_text(encoding="utf-8"))
-        print(json.dumps(attach_supplementary(args.primary_pdf, args.supplementary_pdf, section, update_spec, no_move=args.no_move), ensure_ascii=False, indent=2))
+        section_file = _temporary_file(args.section_file)
+        update_file = _temporary_file(args.update_json)
+        section = section_file.read_text(encoding="utf-8")
+        update_spec = json.loads(update_file.read_text(encoding="utf-8"))
+        result = attach_supplementary(args.primary_pdf, args.supplementary_pdf, section, update_spec, no_move=args.no_move)
+        _cleanup_temporary_files([section_file, update_file])
+        print(json.dumps(result, ensure_ascii=False, indent=2))
     else:
         print(json.dumps(repair_pdf_links(), ensure_ascii=False, indent=2))
 
