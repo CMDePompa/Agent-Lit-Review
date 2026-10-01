@@ -149,6 +149,18 @@ A successful run moves the PDF to `PDFs/Ingested`, unless you ask Codex to leave
 
 After fixing the issue, ask the skill to retry the flagged filename, for example, `Use $literature-intake to retry this paper: PDFs/Inbox/example.pdf`. Editing or replacing the PDF also makes it eligible again on the next Inbox inspection. The Dashboard shows the reported reason so you can tell what needs fixing; the failure queue is stored locally in `data/tmp/intake_failures.json` and is deleted automatically when no flags remain.
 
+If your field is math-heavy, I also recommend adding this to your processing prompts so equations are rendered properly in Markdown:
+
+```
+FORMATTING RULE FOR MATH & EQUATIONS:
+- Format all mathematical variables, symbols, inline equations, and units using standard Markdown LaTeX math delimiters.
+- INLINE MATH: Wrap all inline mathematical expressions, single variables, and greek letters in single dollar signs ($...$). 
+  Example: Write `$\chi_{AB}$` or `$p \le 1/3$`, NEVER `(chi_{AB})` or `(p \leq 1/3)`.
+- DISPLAY MATH: Wrap standalone, multi-line, or primary equations in double dollar signs ($$...$$) on their own lines.
+- ALWAYS include proper backslashes for LaTeX commands (e.g., `\chi`, `\alpha`, `\le`, `\frac{}{}`).
+- Never use standard parentheses `(...)` or square brackets `[...]` to delimit LaTeX code.
+```
+
 ### Step 6: Review the generated note
 
 Open the new note in `Literature Notes/Papers` or through the [Literature Database](Literature%20Notes/Literature%20Database.base). Check its claims, metadata, numbers, figure suggestions, and tags against the linked PDF. The note is an AI draft until you review it. Confirm that the `pdf` property opens the source and that **My Notes**, **Figure Screenshots**, and **Connections to Other Papers** remain available for your own writing.
