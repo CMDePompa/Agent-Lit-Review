@@ -107,6 +107,18 @@ Add `COUNT=#` to limit the number of runs. Start with a small count so you can m
 
 You can also create a monitor that watches the Inbox and starts intake only when a source is waiting.
 
+If your field is math-heavy, I also recommend adding this to your processing prompts so equations are rendered properly in Markdown:
+
+```
+FORMATTING RULE FOR MATH & EQUATIONS:
+- Format all mathematical variables, symbols, inline equations, and units using standard Markdown LaTeX math delimiters.
+- INLINE MATH: Wrap all inline mathematical expressions, single variables, and greek letters in single dollar signs ($...$). 
+  Example: Write `$\chi_{AB}$` or `$p \le 1/3$`, NEVER `(chi_{AB})` or `(p \leq 1/3)`.
+- DISPLAY MATH: Wrap standalone, multi-line, or primary equations in double dollar signs ($$...$$) on their own lines.
+- ALWAYS include proper backslashes for LaTeX commands (e.g., `\chi`, `\alpha`, `\le`, `\frac{}{}`).
+- Never use standard parentheses `(...)` or square brackets `[...]` to delimit LaTeX code.
+```
+
 ## Add a view and a Dashboard link
 
 1. Open [[Literature Database.base|Literature Database]]. Click its view name at the top left and choose **Add view**. Give the view a unique name, such as **Simulation Methods**.
