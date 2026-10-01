@@ -3,8 +3,9 @@ title: ""
 parent_title: ""
 authors: []
 year: null
-source_type: "paper"
-document_type: "primary"
+source_type: "thesis-chapter"
+document_type: "thesis_chapter"
+thesis_subtype: "synthesis_conclusion"
 source_file_count: 1
 journal: ""
 doi: ""
@@ -31,32 +32,33 @@ review_status: unread
 metadata_review_needed: true
 ---
 
-# Title
+# Thesis Title / Chapter Title - Synthesis & Future Outlook
 
 > [!warning] AI-generated draft
 > This note was generated from the attached PDF and has not been manually verified.
 
-## Rapid Summary
+## Cumulative Summary
 
-## Research Question
+## Summary of Major Contributions
 
-## Methods and System
+- **Contribution 1:**
+- **Contribution 2:**
 
-## Key Findings
+## Mapping of Research Aims & Outcomes
 
-## Quantitative Results
+| Thesis Aim / Objective | Key Finding / Outcome | Status (Resolved / Partial) |
+|---|---|---|
+| Aim 1 description | Core result | Resolved / Ongoing |
 
-## Authors’ Stated Limitations
+## Unresolved Gaps & Future Research Directions
 
-## Relevance to My Research
+- **Immediate Next Steps:**
+- **Long-Term Opportunities:**
 
-## Figures Worth Reviewing
+## Practical Knowledge Transfer
 
-## Claims to Verify Manually
-
-## Supporting Evidence
-
-## Suggested Topics
+- **Code / Datasets Generated:**
+- **Custom Equipment / Protocol Notes:**
 
 ## My Notes
 

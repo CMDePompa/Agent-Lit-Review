@@ -6,51 +6,23 @@ Use only the selected source unit. Preserve qualifications and distinguish repor
 
 ## Journal paper
 
-Name the PDF `<Year> <Author(s)> - <Article Title>.pdf`. Set `source_type: paper`; use the paper-note schema and journal-article Zotero lookup.
+Name the PDF `<Year> <Author(s)> - <Article Title>.pdf`. Classify from the PDF title and section headings. For primary research, set `source_type: paper` and `document_type: primary`; use the existing paper-note schema and journal-article Zotero lookup.
 
 ## Review article
 
-A review PDF is named `REVIEW - <Year> <Author(s)> - <Article Title>.pdf`. Set `source_type: review`; use the paper-note headings and journal-article Zotero lookup. Summarize its scope, how the authors selected or organized prior work when stated, areas of agreement and disagreement, and conclusions. Attribute findings from cited studies to the review's report of those studies, not to new experiments by the review authors. Leave unsupported quantitative or methodological details unstated.
+A review PDF may be named `REVIEW - <Year> <Author(s)> - <Article Title>.pdf`, but classification comes from PDF-visible content, not the filename. Set `source_type: review` and `document_type: review`; use [review-extraction.md](review-extraction.md), the Review Note Template, and journal-article Zotero lookup. Summarize field taxonomy, design paradigms, landmark cited studies, secondary benchmarks, and future directions. Attribute claims and numbers from cited studies to the review's report of those studies, not to new experiments by the review authors. Leave unsupported quantitative or methodological details unstated.
 
 ## Textbook chapter
 
-Name the PDF `TEXTBOOK - <Year> <Author> - <Book Title> - Ch <NN> - <Chapter Title>.pdf`, using a two-digit chapter number. Set `source_type: textbook-chapter` and use metadata visible in the PDF; do not run Zotero article lookup. Process one chapter per source package whenever practical.
+Name the PDF `TEXTBOOK - <Year> <Author> - <Book Title> - Ch <NN> - <Chapter Title>.pdf`, using a two-digit chapter number. Classify from PDF-visible chapter structure rather than the filename: chapter/numbered-section headings, learning objectives, worked examples, chapter summary, end-of-chapter exercises or review questions, or a clearly pedagogical presentation. Set `source_type: textbook-chapter` and `document_type: textbook_chapter`; use [textbook-extraction.md](textbook-extraction.md) and the Textbook Chapter Note Template. Use metadata visible in the PDF and skip Zotero article lookup. Process one chapter per source package whenever practical.
 
-Emphasize:
-
-- Chapter purpose and scope
-- Central concepts and definitions
-- Governing theories, models, and equations
-- Assumptions and applicability
-- Important examples
-- Connections to the user’s research
-- Figures, tables, or diagrams worth reviewing
-- Topics requiring further reading
-
-Do not describe textbook exposition as original research. Replace paper-specific sections such as “Research Question,” “Key Findings,” and “Authors’ Stated Limitations” with:
-
-- Chapter Scope
-- Core Concepts
-- Models and Equations
-- Assumptions and Limitations
-- Important Examples
-- Relevance to My Research
+Present definitions, governing equations, theorems, derivations, worked examples, applications, and self-assessment questions in instructional order. Write mathematical expressions and variables with `$...$` or `$$...$$` LaTeX delimiters. Do not describe textbook exposition as original research or force experimental methods, study limitations, and literature maps into the chapter note.
 
 ## Thesis or dissertation chapter
 
-Name the PDF `THESIS - <Year> <Author> - <Thesis Title> - Ch <NN> - <Chapter Title>.pdf`, using a two-digit chapter number. Set `source_type: thesis-chapter` and use metadata visible in the PDF; do not run Zotero article lookup. Process one chapter per source package whenever practical.
+Name the PDF `THESIS - <Year> <Author> - <Thesis Title> - Ch <NN> - <Chapter Title>.pdf`, using a two-digit chapter number. The filename organizes the vault; establish thesis identity and chapter purpose from the PDF. Set `source_type: thesis-chapter`, `document_type: thesis_chapter`, and a required `thesis_subtype`. Use PDF-visible metadata and skip Zotero article lookup. Process one chapter per source package whenever practical.
 
-First identify the chapter type:
-
-- Introduction or literature review
-- Methods
-- Results
-- Discussion
-- Conclusions
-
-Emphasize the chapter’s role within the thesis, its specific methods or claims, dependencies on other chapters, and any statements that cannot be evaluated from the selected chapter alone.
-
-Do not attribute thesis-wide conclusions to one chapter unless that chapter explicitly states them.
+Use [thesis-chapter-extraction.md](thesis-chapter-extraction.md) for the four subtypes: an introduction or literature review with thesis objectives/specific aims; a methodology or theory chapter with custom apparatus, protocols, or derivations; a research-body chapter with results, figures, analysis, and discussion; or a synthesis/conclusion chapter with cumulative contributions and future directions. Each reuses the appropriate review, textbook, or primary template with a thesis-specific addition, except synthesis/conclusion, which has its own template. If the subtype cannot be established from the chapter, inspect further rather than guess. Identify dependencies on other chapters without attributing unexamined results to this one.
 
 ## Complete thesis
 

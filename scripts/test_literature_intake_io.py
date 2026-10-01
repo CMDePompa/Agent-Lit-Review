@@ -19,7 +19,7 @@ class IntakeFileTests(unittest.TestCase):
         self.pdf = self.inbox / "paper.pdf"
         self.pdf.write_bytes(b"%PDF-1.4\nfixture")
         human = {"My Notes", "Figure Screenshots", "Connections to Other Papers"}
-        self.note_text = "---\ntitle: ''\nsource_type: paper\nmetadata_review_needed: true\npdf: ../../PDFs/Inbox/paper.pdf\n---\n" + "\n".join(f"## {h}\n\n" + ("" if h in human else "Not stated.\n") for h in intake.PAPER_SECTIONS)
+        self.note_text = "---\ntitle: ''\nsource_type: paper\ndocument_type: primary\nmetadata_review_needed: true\npdf: ../../PDFs/Inbox/paper.pdf\n---\n" + "\n".join(f"## {h}\n\n" + ("" if h in human else "Not stated.\n") for h in intake.PAPER_SECTIONS)
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -157,18 +157,133 @@ class IntakeFileTests(unittest.TestCase):
         self.assertEqual(result["selected_codex_tier"], "high")
         self.assertEqual(result["skill_workflow_version"], intake.VERSION)
 
-    def test_review_filename_requires_review_source_type(self):
-        review_pdf = self.inbox / "REVIEW - 2020 Author - Title.pdf"
-        review_pdf.write_bytes(b"%PDF-1.4\nfixture")
-        review_note = self.note_text.replace("source_type: paper", "source_type: review")
+    def test_review_schema_routes_without_filename_prefix(self):
+        template = (intake.ROOT / "Literature Notes" / "Templates" / "Review Note Template.md").read_text(encoding="utf-8")
+        review_note = template.replace('title: ""', 'title: "Review title"', 1)
+        review_note = review_note.replace("## Rapid Summary", "## Rapid Summary\n\nA field synthesis.\n", 1)
         with self.assertRaises(ValueError):
-            intake.commit(review_pdf, review_pdf.stem, self.note_text, no_move=True, root=self.root)
-        with self.assertRaises(ValueError):
-            intake.commit(self.pdf, "paper", review_note, no_move=True, root=self.root)
-        result = intake.commit(review_pdf, review_pdf.stem, review_note, no_move=True, root=self.root)
+            intake.commit(self.pdf, "paper", review_note.replace("## Scope & Taxonomy of the Field", "## Research Question"), no_move=True, root=self.root)
+        result = intake.commit(self.pdf, "paper", review_note, no_move=True, root=self.root)
         saved = (self.root / result["generated_note_path"]).read_text(encoding="utf-8")
         self.assertEqual(intake._frontmatter_value(saved, "source_type"), "review")
-        self.assertTrue(review_pdf.exists())
+        self.assertEqual(intake._frontmatter_value(saved, "document_type"), "review")
+        self.assertEqual(result["document_type"], "review")
+        self.assertTrue(self.pdf.exists())
+
+    def test_classify_paper_routing(self):
+        headings = ["Introduction", "Results", "Materials and Methods", "Discussion"]
+        self.assertEqual(intake.classify_document("Experimental self assembly", headings)["document_type"], "primary")
+        self.assertEqual(intake.classify_document("Progress in polymer interfaces", headings)["document_type"], "review")
+        self.assertEqual(intake.classify_document("Polymer interfaces", ["Introduction", "Outlook"])["document_type"], "review")
+        self.assertEqual(intake.classify_document("Polymer interfaces")["document_type"], "primary")
+        self.assertEqual(intake.classify_document("Chapter 4: Polymer Thermodynamics", ["Learning Objectives", "Worked Example 4.1"])["document_type"], "textbook_chapter")
+        self.assertEqual(intake.classify_document("Fundamentals of Polymers", ["Introduction", "Chapter Summary"])["document_type"], "textbook_chapter")
+        self.assertEqual(intake.classify_document("Fundamentals of Polymers", ["Introduction"], has_end_of_chapter_exercises=True)["document_type"], "textbook_chapter")
+        self.assertEqual(intake.classify_document("Fundamentals of Polymers", pedagogical_structure=True)["document_type"], "textbook_chapter")
+
+    def test_textbook_chapter_uses_dedicated_schema_and_latex_formulas(self):
+        template = (intake.ROOT / "Literature Notes" / "Templates" / "Textbook Chapter Note Template.md").read_text(encoding="utf-8")
+        chapter_pdf = self.inbox / "chapter.pdf"
+        chapter_pdf.write_bytes(b"%PDF-1.4\nfixture")
+        draft = template.replace("| Name of Equation/Law | $...$ | Define each variable using $...$ notation | Significance or application |",
+                                 "| Ideal gas law | $PV=nRT$ | $P$: pressure; $V$: volume | Relates state variables |")
+        classification = {"title": "Chapter 2: Thermodynamics", "section_headings": ["Learning Objectives", "Worked Example 2.1"]}
+        result = intake.commit(chapter_pdf, "chapter", draft, no_move=True, classification=classification, root=self.root)
+        saved = (self.root / result["generated_note_path"]).read_text(encoding="utf-8")
+        self.assertEqual(intake._frontmatter_value(saved, "document_type"), "textbook_chapter")
+        self.assertEqual(intake._frontmatter_value(saved, "source_type"), "textbook-chapter")
+        self.assertIn("## Concept Check & Self-Assessment Questions", saved)
+        self.assertNotIn("## Methods and System", saved)
+        self.assertEqual(result["document_type"], "textbook_chapter")
+
+    def test_textbook_formula_table_rejects_non_latex_expression(self):
+        template = (intake.ROOT / "Literature Notes" / "Templates" / "Textbook Chapter Note Template.md").read_text(encoding="utf-8")
+        draft = template.replace("$...$", "PV=nRT", 1)
+        with self.assertRaisesRegex(ValueError, "LaTeX notation"):
+            intake.validate_note(draft)
+
+    def test_thesis_two_tier_classification_and_schema_routes(self):
+        cases = (
+            ("intro_literature_review", "Chapter 1: Background and Literature Review",
+             ["Prior Work", "Specific Aims"], "Review Note Template.md", "review",
+             "Thesis Scope & Specific Aims", "Suggested Topics"),
+            ("methodology_theory", "Chapter 2: Experimental Methodology",
+             ["Custom Apparatus", "Experimental Protocol"], "Textbook Chapter Note Template.md",
+             "textbook_chapter", "Custom Setups & Key Protocols", "My Notes"),
+            ("research_body", "Chapter 3: Results and Discussion",
+             ["Data Analysis", "Results", "Discussion"], "Literature Note Template.md",
+             "primary", "Mapped Thesis Aim", "Suggested Topics"),
+            ("synthesis_conclusion", "Chapter 6: Conclusions and Future Directions",
+             ["Overall Contributions", "Future Research"], "Thesis Synthesis Note Template.md",
+             "thesis_chapter", None, None),
+        )
+        for subtype, title, headings, template_name, base_type, extra, insertion in cases:
+            with self.subTest(subtype=subtype):
+                classification = {"title": title, "section_headings": headings, "is_thesis_chapter": True}
+                decision = intake.classify_document(title, headings, is_thesis_chapter=True)
+                self.assertEqual(decision["document_type"], "thesis_chapter")
+                self.assertEqual(decision["thesis_subtype"], subtype)
+                self.assertEqual(decision["required_section"], extra)
+                draft = (intake.ROOT / "Literature Notes" / "Templates" / template_name).read_text(encoding="utf-8")
+                if base_type != "thesis_chapter":
+                    source = {"review": "review", "textbook_chapter": "textbook-chapter", "primary": "paper"}[base_type]
+                    draft = draft.replace(f'source_type: "{source}"', 'source_type: "thesis-chapter"', 1)
+                    draft = draft.replace(f'document_type: "{base_type}"',
+                                          f'document_type: "thesis_chapter"\nthesis_subtype: "{subtype}"', 1)
+                    draft = draft.replace(f"## {insertion}", f"## {extra}\n\nNot stated in this chapter.\n\n## {insertion}", 1)
+                    if subtype == "research_body":
+                        draft = draft.replace('thesis_subtype: "research_body"',
+                                              'thesis_subtype: "research_body"\nmapped_thesis_aim: "Aim stated in this chapter"', 1)
+                pdf = self.inbox / f"{subtype}.pdf"
+                pdf.write_bytes(b"%PDF-1.4\nfixture")
+                result = intake.commit(pdf, subtype, draft, no_move=True, classification=classification, root=self.root)
+                note = (self.root / result["generated_note_path"]).read_text(encoding="utf-8")
+                self.assertEqual(intake._frontmatter_value(note, "document_type"), "thesis_chapter")
+                self.assertEqual(intake._frontmatter_value(note, "thesis_subtype"), subtype)
+                self.assertEqual(result["thesis_subtype"], subtype)
+                if extra:
+                    self.assertIn(f"## {extra}", note)
+
+    def test_thesis_subtype_and_research_aim_are_required(self):
+        template = (intake.ROOT / "Literature Notes" / "Templates" / "Thesis Synthesis Note Template.md").read_text(encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "thesis_subtype"):
+            intake.validate_note(template.replace('thesis_subtype: "synthesis_conclusion"\n', "", 1))
+        primary = (intake.ROOT / "Literature Notes" / "Templates" / "Literature Note Template.md").read_text(encoding="utf-8")
+        research = primary.replace('source_type: "paper"', 'source_type: "thesis-chapter"', 1)
+        research = research.replace('document_type: "primary"',
+                                    'document_type: "thesis_chapter"\nthesis_subtype: "research_body"', 1)
+        research = research.replace("## Suggested Topics", "## Mapped Thesis Aim\n\nNot stated.\n\n## Suggested Topics", 1)
+        with self.assertRaisesRegex(ValueError, "mapped_thesis_aim"):
+            intake.validate_note(research)
+
+    def test_unclear_thesis_subtype_does_not_guess(self):
+        with self.assertRaisesRegex(ValueError, "subtype is unclear"):
+            intake.classify_document("Chapter 4: Additional Topics", ["Introduction", "Overview"], is_thesis_chapter=True)
+        with self.assertRaisesRegex(ValueError, "must be a boolean"):
+            intake.classify_document("Chapter 4: Results", ["Results"], is_thesis_chapter="false")
+
+    def test_commit_rejects_wrong_thesis_subtype_before_writing(self):
+        template = (intake.ROOT / "Literature Notes" / "Templates" / "Thesis Synthesis Note Template.md").read_text(encoding="utf-8")
+        chapter_pdf = self.inbox / "thesis-chapter.pdf"
+        chapter_pdf.write_bytes(b"%PDF-1.4\nfixture")
+        with self.assertRaisesRegex(ValueError, "disagrees"):
+            intake.commit(
+                chapter_pdf, "thesis-chapter", template, no_move=True,
+                classification={"title": "Chapter 3: Results", "section_headings": ["Results", "Data Analysis"],
+                                "is_thesis_chapter": True}, root=self.root,
+            )
+        self.assertTrue(chapter_pdf.exists())
+        self.assertFalse((self.root / "Literature Notes" / "Papers" / "thesis-chapter.md").exists())
+
+    def test_commit_rejects_schema_that_disagrees_with_classification(self):
+        with self.assertRaisesRegex(ValueError, "disagrees"):
+            intake.commit(
+                self.pdf, "paper", self.note_text, no_move=True,
+                classification={"title": "A Survey of Polymer Interfaces", "section_headings": ["Introduction", "Outlook"]},
+                root=self.root,
+            )
+        self.assertTrue(self.pdf.exists())
+        self.assertFalse((self.root / "Literature Notes" / "Papers" / "paper.md").exists())
 
     def test_review_uses_article_zotero_lookup(self):
         export = self.root / "zotero.json"
@@ -258,6 +373,7 @@ class IntakeFileTests(unittest.TestCase):
             "---\n"
             "title: Paper\n"
             "source_type: paper\n"
+            "document_type: primary\n"
             "source_file_count: 1\n"
             'summary_scope: "Primary paper"\n'
             'page_scope: "pp. 1–2"\n'

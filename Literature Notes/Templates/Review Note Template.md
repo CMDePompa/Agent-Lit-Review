@@ -3,8 +3,8 @@ title: ""
 parent_title: ""
 authors: []
 year: null
-source_type: "paper"
-document_type: "primary"
+source_type: "review"
+document_type: "review"
 source_file_count: 1
 journal: ""
 doi: ""
@@ -21,10 +21,10 @@ supplementary_pdf: null
 pdf: []
 research_topics: []
 methodology: []
-evidence_type: []
+evidence_type: ["review"]
 polymer_system: []
 morphologies: []
-paper_role: []
+paper_role: ["review"]
 context_summary: ""
 summary_status: ai-draft
 review_status: unread
@@ -38,23 +38,37 @@ metadata_review_needed: true
 
 ## Rapid Summary
 
-## Research Question
+## Scope & Taxonomy of the Field
 
-## Methods and System
+- **Core Focus:**
+- **Thematic Branches:**
+  - **Theme 1:**
+  - **Theme 2:**
+- **Explicit Omissions:**
 
-## Key Findings
+## Consolidated Design Rules & Paradigms
 
-## Quantitative Results
+- **Rule/Paradigm 1:**
+- **Rule/Paradigm 2:**
 
-## Authors’ Stated Limitations
+## Landmark Papers Highlighted
 
-## Relevance to My Research
+| Landmark Study | Focus / Breakthrough | Role in Field |
+|---|---|---|
+
+## Key Benchmarks & Empirical Metrics
+
+| Parameter / Phenomenon | Range / Value | Context / Notes |
+|---|---|---|
+
+## Open Challenges & Future Outlook
+
+- **Current Bottlenecks:**
+- **Future Directions:**
 
 ## Figures Worth Reviewing
 
-## Claims to Verify Manually
-
-## Supporting Evidence
+## Relevance to My Research
 
 ## Suggested Topics
 

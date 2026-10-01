@@ -22,12 +22,31 @@ PAPER_SECTIONS = (
     "Figures Worth Reviewing", "Suggested Topics", "My Notes", "Figure Screenshots",
     "Connections to Other Papers",
 )
+REVIEW_SECTIONS = (
+    "Rapid Summary", "Scope & Taxonomy of the Field", "Consolidated Design Rules & Paradigms",
+    "Landmark Papers Highlighted", "Key Benchmarks & Empirical Metrics",
+    "Open Challenges & Future Outlook", "Figures Worth Reviewing", "Relevance to My Research",
+    "Suggested Topics", "My Notes", "Figure Screenshots", "Connections to Other Papers",
+)
 TEXTBOOK_SECTIONS = (
-    "Chapter Scope", "Core Concepts", "Models and Equations", "Assumptions and Limitations",
-    "Important Examples", "Relevance to My Research", "Figures Worth Reviewing", "Suggested Topics",
+    "Chapter Overview & Learning Objectives", "Core Concepts & Glossary",
+    "Key Formulas, Theorems & Governing Equations",
+    "Foundational Frameworks & Step-by-Step Mechanisms", "Canonical Examples & Case Studies",
+    "Practical Applications & Real-World Context", "Concept Check & Self-Assessment Questions",
     "My Notes", "Figure Screenshots", "Connections to Other Papers",
 )
-VERSION = "literature-intake-v3"
+THESIS_SYNTHESIS_SECTIONS = (
+    "Cumulative Summary", "Summary of Major Contributions", "Mapping of Research Aims & Outcomes",
+    "Unresolved Gaps & Future Research Directions", "Practical Knowledge Transfer",
+    "My Notes", "Figure Screenshots", "Connections to Other Papers",
+)
+THESIS_SUBTYPES = {
+    "intro_literature_review": (REVIEW_SECTIONS, "Thesis Scope & Specific Aims"),
+    "methodology_theory": (TEXTBOOK_SECTIONS, "Custom Setups & Key Protocols"),
+    "research_body": (PAPER_SECTIONS, "Mapped Thesis Aim"),
+    "synthesis_conclusion": (THESIS_SYNTHESIS_SECTIONS, None),
+}
+VERSION = "literature-intake-v6"
 TAG_LIST_PROPERTIES = (
     "research_topics", "methodology", "evidence_type", "polymer_system", "morphologies", "paper_role",
 )
@@ -39,6 +58,95 @@ FAILURES_END = "<!-- literature-intake:needs-attention:end -->"
 def inbox_items(root=ROOT):
     inbox = root / "PDFs" / "Inbox"
     return sorted((p.name for p in inbox.iterdir() if p.is_file() and p.suffix.lower() == ".pdf"), key=str.casefold) if inbox.exists() else []
+
+
+def classify_document(title, section_headings=None, *, is_thesis_chapter=False, chapter_number=None,
+                      chapter_text_signals=None, has_end_of_chapter_exercises=False, pedagogical_structure=False):
+    """Choose document type and, for thesis chapters, an evidence-based subtype."""
+    if section_headings is not None and not isinstance(section_headings, list):
+        raise ValueError("section_headings must be a list")
+    if chapter_text_signals is not None and not isinstance(chapter_text_signals, list):
+        raise ValueError("chapter_text_signals must be a list")
+    for name, value in (("is_thesis_chapter", is_thesis_chapter),
+                        ("has_end_of_chapter_exercises", has_end_of_chapter_exercises),
+                        ("pedagogical_structure", pedagogical_structure)):
+        if not isinstance(value, bool):
+            raise ValueError(f"{name} must be a boolean")
+    if chapter_number is not None:
+        try:
+            chapter_number = int(chapter_number)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("chapter_number must be an integer") from exc
+    title = str(title or "")
+    headings = [str(heading).strip() for heading in section_headings or [] if str(heading).strip()]
+    signals = [str(signal).strip() for signal in chapter_text_signals or [] if str(signal).strip()]
+    thesis_marker = bool(re.search(r"\b(?:thesis|dissertation)\b", title, re.I)
+                         or any(re.search(r"\b(?:thesis|dissertation)\b", heading, re.I) for heading in headings))
+    chapter_marker = bool(re.search(r"\bchapter\s+(?:\d+|[IVXLCDM]+)\b", title, re.I)
+                          or any(re.search(r"\bchapter\s+(?:\d+|[IVXLCDM]+)\b", heading, re.I) for heading in headings))
+    chapter_context = is_thesis_chapter or (thesis_marker and chapter_marker)
+    thesis_subtype = None
+    if chapter_context:
+        title_text = title.casefold()
+        evidence = " ".join([title, *headings, *signals]).casefold()
+        synthesis_title = re.search(r"\b(?:synthesis|conclusions?|future (?:work|research|directions|outlook)|overall contributions?)\b", title_text)
+        cumulative = re.search(r"\b(?:cumulative|overall|thesis-wide|major contributions?)\b", evidence)
+        future = re.search(r"\b(?:future (?:work|research|directions)|recommendations? for future researchers?)\b", evidence)
+        intro_title = re.search(r"\b(?:introduction|background|literature review|lit review)\b", title_text)
+        aims = re.search(r"\b(?:thesis objectives?|specific aims?|research objectives?)\b", evidence)
+        methods_title = re.search(r"\b(?:methodology|methods?|theory|theoretical framework|protocols?)\b", title_text)
+        methods_detail = re.search(r"\b(?:custom apparatus|experimental protocols?|custom setups?|theoretical derivations?|instrumentation)\b", evidence)
+        research = re.search(r"\b(?:results?|data analysis|discussion|findings|experimental study)\b", evidence)
+        if synthesis_title or (cumulative and future):
+            thesis_subtype = "synthesis_conclusion"
+        elif intro_title or (chapter_number == 1 and aims) or (aims and not research):
+            thesis_subtype = "intro_literature_review"
+        elif methods_title or methods_detail:
+            thesis_subtype = "methodology_theory"
+        elif research:
+            thesis_subtype = "research_body"
+        else:
+            raise ValueError("Thesis chapter subtype is unclear; inspect chapter purpose and headings before drafting")
+        base = {
+            "intro_literature_review": ("Literature Notes/Templates/Review Note Template.md", ".agents/skills/literature-intake/review-extraction.md"),
+            "methodology_theory": ("Literature Notes/Templates/Textbook Chapter Note Template.md", ".agents/skills/literature-intake/textbook-extraction.md"),
+            "research_body": ("Literature Notes/Templates/Literature Note Template.md", ".agents/skills/literature-intake/note-schema.md"),
+            "synthesis_conclusion": ("Literature Notes/Templates/Thesis Synthesis Note Template.md", None),
+        }
+        template, base_prompt = base[thesis_subtype]
+        required_section = THESIS_SUBTYPES[thesis_subtype][1]
+        return {"document_type": "thesis_chapter", "thesis_subtype": thesis_subtype,
+                "source_type": "thesis-chapter", "template": template,
+                "extraction_prompt": ".agents/skills/literature-intake/thesis-chapter-extraction.md",
+                "base_prompt": base_prompt, "required_section": required_section,
+                "reason": f"thesis chapter {thesis_subtype} cues"}
+
+    review_title = bool(re.search(r"\b(?:review|progress in|perspectives?|a survey of)\b", title, re.I))
+    textbook_pattern = r"\b(?:chapter\s+(?:\d+|[IVXLCDM]+)\b|section\s+\d+(?:\.\d+)+\b|learning objectives?\b|worked examples?\b|chapter summary\b|end.of.chapter exercises?\b|review questions?\b)"
+    textbook_heading = any(re.search(textbook_pattern, value, re.I) for value in [title, *headings])
+    textbook = textbook_heading or bool(has_end_of_chapter_exercises) or bool(pedagogical_structure)
+    methods_heading = any(re.search(r"\b(?:materials?(?:\s+and\s+methods?)?|methods?|experimental(?:\s+(?:section|methods?|procedures?|details?))?)\b", heading, re.I)
+                          for heading in headings)
+    document_type = "textbook_chapter" if textbook else "review" if review_title or (headings and not methods_heading) else "primary"
+    routes = {
+        "primary": ("paper", "Literature Notes/Templates/Literature Note Template.md", ".agents/skills/literature-intake/note-schema.md"),
+        "review": ("review", "Literature Notes/Templates/Review Note Template.md", ".agents/skills/literature-intake/review-extraction.md"),
+        "textbook_chapter": ("textbook-chapter", "Literature Notes/Templates/Textbook Chapter Note Template.md", ".agents/skills/literature-intake/textbook-extraction.md"),
+    }
+    source_type, template, extraction_prompt = routes[document_type]
+    return {
+        "document_type": document_type,
+        "thesis_subtype": None,
+        "source_type": source_type,
+        "template": template,
+        "extraction_prompt": extraction_prompt,
+        "reason": "textbook chapter structure" if textbook else "review phrase in PDF title" if review_title else "no distinct methods section in inspected heading list" if headings and not methods_heading else "default primary",
+    }
+
+
+def classify_paper(title, section_headings=None, **kwargs):
+    """Compatibility alias for callers of the earlier classification helper."""
+    return classify_document(title, section_headings, **kwargs)
 
 
 def resolve_inbox_file(value, root=ROOT):
@@ -236,24 +344,78 @@ def destinations(pdf, note_name, root=ROOT, supplementary=None):
     return note, ingested, record
 
 
-def validate_note(markdown, *, require_blank_human_sections=True):
+def validate_note(markdown, *, require_blank_human_sections=True, allow_legacy_review=False):
     if not markdown.startswith("---\n"):
         raise ValueError("Note must start with YAML frontmatter")
     source_match = re.search(r"^source_type:\s*[\"']?([^\"'\r\n]+)", markdown, re.M)
     if not source_match:
         raise ValueError("Note frontmatter must include source_type")
     source_type = source_match.group(1).strip().casefold()
+    document_type = (_frontmatter_optional_value(markdown, "document_type")
+                     or _frontmatter_optional_value(markdown, "paper_type")).casefold()
+    thesis_subtype = _frontmatter_optional_value(markdown, "thesis_subtype").casefold()
+    if source_type in {"paper", "journal-article", "review", "textbook-chapter"}:
+        if document_type not in {"primary", "review", "textbook_chapter"} and not (allow_legacy_review and source_type == "review" and not document_type):
+            raise ValueError("Paper notes require document_type: primary, review, or textbook_chapter")
+        expected_source = {"primary": {"paper", "journal-article"}, "review": {"review"}, "textbook_chapter": {"textbook-chapter"}}
+        if document_type and source_type not in expected_source[document_type]:
+            raise ValueError("document_type and source_type disagree")
+        if thesis_subtype:
+            raise ValueError("thesis_subtype is only valid for thesis chapters")
+    elif source_type == "thesis-chapter":
+        if document_type != "thesis_chapter" or thesis_subtype not in THESIS_SUBTYPES:
+            raise ValueError("Thesis chapters require document_type: thesis_chapter and a valid thesis_subtype")
+    elif source_type == "thesis" and (document_type or thesis_subtype):
+        raise ValueError("Complete theses do not use chapter routing fields")
     if source_type == "textbook-chapter":
         required = TEXTBOOK_SECTIONS
-    elif source_type in {"paper", "journal-article", "review"}:
+    elif source_type == "review":
+        required = PAPER_SECTIONS if allow_legacy_review and not document_type else REVIEW_SECTIONS
+    elif source_type in {"paper", "journal-article"}:
         required = PAPER_SECTIONS
-    elif source_type in {"thesis", "thesis-chapter"}:
+    elif source_type == "thesis-chapter":
+        base_sections, extra_section = THESIS_SUBTYPES[thesis_subtype]
+        required = base_sections + ((extra_section,) if extra_section else ())
+    elif source_type == "thesis":
         required = ("Relevance to My Research", "My Notes", "Figure Screenshots", "Connections to Other Papers")
     else:
         raise ValueError(f"Unsupported source_type: {source_type}")
     for heading in required:
         if len(re.findall(r"^## " + re.escape(heading) + r"\s*$", markdown, re.M)) != 1:
             raise ValueError(f"Missing or duplicate section: {heading}")
+    if (document_type == "review" or thesis_subtype == "intro_literature_review") and any(re.search(r"^## " + re.escape(heading) + r"\s*$", markdown, re.M)
+                                       for heading in ("Research Question", "Methods and System", "Authors’ Stated Limitations", "Quantitative Results")):
+        raise ValueError("Review notes must use the review extraction schema")
+    uses_textbook_schema = source_type == "textbook-chapter" or thesis_subtype == "methodology_theory"
+    if uses_textbook_schema and any(re.search(r"^## " + re.escape(heading) + r"\s*$", markdown, re.M)
+                                              for heading in ("Methods and System", "Authors’ Stated Limitations", "Landmark Papers Highlighted")):
+        raise ValueError("Textbook notes must use the textbook chapter schema")
+    if uses_textbook_schema:
+        formula_section = re.search(
+            r"^## Key Formulas, Theorems & Governing Equations\s*$([\s\S]*?)(?=^## |\Z)", markdown, re.M,
+        ).group(1)
+        for line in formula_section.splitlines():
+            if not line.startswith("|") or "Mathematical Expression" in line or re.fullmatch(r"[\s|:-]+", line):
+                continue
+            cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+            if len(cells) != 4:
+                raise ValueError("Textbook formula table must have four columns")
+            expression = cells[1]
+            if expression and expression.casefold() != "not stated." and not (
+                (expression.startswith("$$") and expression.endswith("$$"))
+                or (expression.startswith("$") and expression.endswith("$") and not expression.startswith("$$"))
+            ):
+                raise ValueError("Textbook formula expressions must use $...$ or $$...$$ LaTeX notation")
+    if thesis_subtype == "research_body":
+        block, _, _ = _frontmatter(markdown)
+        if len(re.findall(r"^mapped_thesis_aim:", block, re.M)) != 1:
+            raise ValueError("Research-body thesis chapters require mapped_thesis_aim frontmatter")
+        if not _frontmatter_value(markdown, "mapped_thesis_aim"):
+            raise ValueError("mapped_thesis_aim must identify an aim or say it is not stated")
+    if source_type == "thesis-chapter" and extra_section:
+        match = re.search(r"^## " + re.escape(extra_section) + r"\s*$([\s\S]*?)(?=^## |\Z)", markdown, re.M)
+        if not match.group(1).strip():
+            raise ValueError(f"Thesis section is blank: {extra_section}")
     if "metadata_review_needed:" not in markdown or "pdf:" not in markdown:
         raise ValueError("Required metadata fields are missing")
     block, _, _ = _frontmatter(markdown)
@@ -602,7 +764,7 @@ def attach_supplementary(primary_value, supplementary_value, section_markdown, u
         raise ValueError("Could not find a safe insertion point for supplementary information")
     updated = updated[:insertion.start()] + section_markdown + "\n" + updated[insertion.start():]
     updated = _remove_legacy_pdf_body_links(updated)
-    validate_note(updated, require_blank_human_sections=False)
+    validate_note(updated, require_blank_human_sections=False, allow_legacy_review=True)
     for heading in ("My Notes", "Figure Screenshots", "Connections to Other Papers"):
         if _section_body(old_note, heading) != _section_body(updated, heading):
             raise ValueError(f"Attachment update changed human-owned section: {heading}")
@@ -710,14 +872,23 @@ def _cleanup_temporary_files(values, root=ROOT):
     return removed
 
 
-def commit(pdf_value, note_name, markdown, *, supplementary_pdf_value=None, no_move=False, model=None, tier=None, warnings=None, metadata_lookup=None, temporary_files=(), root=ROOT):
+def commit(pdf_value, note_name, markdown, *, supplementary_pdf_value=None, no_move=False, model=None, tier=None, warnings=None, metadata_lookup=None, classification=None, temporary_files=(), root=ROOT):
     model = model.strip() or None if model is not None else None
     tier = tier.strip() or None if tier is not None else None
     pdf = resolve_pdf(pdf_value, root)
-    is_review_filename = pdf.name.startswith("REVIEW - ")
-    is_review_note = _frontmatter_value(markdown, "source_type").casefold() == "review"
-    if is_review_filename != is_review_note:
-        raise ValueError("REVIEW - filenames require source_type: review, and review notes require the REVIEW - prefix")
+    if classification is not None:
+        decision = classify_document(
+            classification.get("title"), classification.get("section_headings"),
+            is_thesis_chapter=classification.get("is_thesis_chapter", False),
+            chapter_number=classification.get("chapter_number"),
+            chapter_text_signals=classification.get("chapter_text_signals"),
+            has_end_of_chapter_exercises=classification.get("has_end_of_chapter_exercises", False),
+            pedagogical_structure=classification.get("pedagogical_structure", False),
+        )
+        if (_frontmatter_value(markdown, "document_type").casefold() != decision["document_type"]
+                or _frontmatter_value(markdown, "source_type").casefold() != decision["source_type"]
+                or _frontmatter_optional_value(markdown, "thesis_subtype").casefold() != (decision["thesis_subtype"] or "")):
+            raise ValueError("Draft document type or thesis subtype disagrees with the PDF-based classification")
     supplementary = supplementary_for(pdf, supplementary_pdf_value, root)
     note, ingested, record = destinations(pdf, note_name, root, supplementary)
     result_pdf = pdf if no_move else ingested
@@ -748,6 +919,8 @@ def commit(pdf_value, note_name, markdown, *, supplementary_pdf_value=None, no_m
         "selected_codex_tier": tier,
         "skill_name": "literature-intake",
         "skill_workflow_version": VERSION,
+        "document_type": _frontmatter_optional_value(markdown, "document_type") or None,
+        "thesis_subtype": _frontmatter_optional_value(markdown, "thesis_subtype") or None,
         "pdf_sha256": sha256(pdf),
         "supplementary_pdf_sha256": sha256(supplementary) if supplementary else None,
         "warnings": combined_warnings,
@@ -816,6 +989,8 @@ def main():
     check.add_argument("pdf")
     check.add_argument("note_name")
     check.add_argument("--supplementary-pdf")
+    classify = sub.add_parser("classify-document", aliases=["classify-paper"], help="Classify a source from PDF-visible title, headings, and chapter features")
+    classify.add_argument("classification_file", type=Path, help="JSON in data/tmp with title, section_headings, and optional textbook features")
     check_si = sub.add_parser("check-supplementary")
     check_si.add_argument("primary_pdf")
     check_si.add_argument("supplementary_pdf")
@@ -830,6 +1005,7 @@ def main():
     save.add_argument("--warnings-json", default="[]")
     save.add_argument("--warnings-json-file", type=Path)
     save.add_argument("--metadata-lookup-file", type=Path)
+    save.add_argument("--classification-file", type=Path)
     save.add_argument("--temporary-file", type=Path, action="append", default=[])
     attach = sub.add_parser("attach-supplementary")
     attach.add_argument("primary_pdf")
@@ -849,6 +1025,18 @@ def main():
         pdf = resolve_pdf(args.pdf)
         supplementary = supplementary_for(pdf, args.supplementary_pdf) if args.supplementary_pdf else None
         print(json.dumps({"pdf": str(pdf), "supplementary_pdf": str(supplementary) if supplementary else None, "destinations": [str(p) for p in destinations(pdf, args.note_name, supplementary=supplementary)]}, ensure_ascii=False, indent=2))
+    elif args.command in {"classify-document", "classify-paper"}:
+        supplied = json.loads(_temporary_file(args.classification_file).read_text(encoding="utf-8"))
+        if not isinstance(supplied, dict) or not isinstance(supplied.get("section_headings", []), list):
+            raise ValueError("Classification JSON requires title and a section_headings list")
+        print(json.dumps(classify_document(
+            supplied.get("title"), supplied.get("section_headings"),
+            is_thesis_chapter=supplied.get("is_thesis_chapter", False),
+            chapter_number=supplied.get("chapter_number"),
+            chapter_text_signals=supplied.get("chapter_text_signals"),
+            has_end_of_chapter_exercises=supplied.get("has_end_of_chapter_exercises", False),
+            pedagogical_structure=supplied.get("pedagogical_structure", False),
+        ), ensure_ascii=False, indent=2))
     elif args.command == "check-supplementary":
         primary, supplementary, note, record = check_supplementary_attachment(args.primary_pdf, args.supplementary_pdf)
         print(json.dumps({"primary_pdf": str(primary), "supplementary_pdf": str(supplementary),
@@ -856,14 +1044,19 @@ def main():
                           "resulting_supplementary_pdf": str(ROOT / "PDFs" / "Ingested" / supplementary.name)}, ensure_ascii=False, indent=2))
     elif args.command == "commit":
         draft_file = _temporary_file(args.draft_file)
+        draft = draft_file.read_text(encoding="utf-8")
         metadata_file = _temporary_file(args.metadata_lookup_file) if args.metadata_lookup_file else None
         warnings_file = _temporary_file(args.warnings_json_file) if args.warnings_json_file else None
+        classification_file = _temporary_file(args.classification_file) if args.classification_file else None
+        if _frontmatter_value(draft, "source_type").casefold() in {"paper", "journal-article", "review", "textbook-chapter", "thesis-chapter"} and classification_file is None:
+            raise ValueError("Source commits require --classification-file")
         if warnings_file and args.warnings_json != "[]":
             raise ValueError("Use either --warnings-json or --warnings-json-file, not both")
         metadata_lookup = json.loads(metadata_file.read_text(encoding="utf-8")) if metadata_file else None
+        classification = json.loads(classification_file.read_text(encoding="utf-8")) if classification_file else None
         warnings = json.loads(warnings_file.read_text(encoding="utf-8")) if warnings_file else json.loads(args.warnings_json)
-        cleanup = [draft_file, metadata_file, warnings_file] + [_temporary_file(path) for path in args.temporary_file]
-        result = commit(args.pdf, args.note_name, draft_file.read_text(encoding="utf-8"), supplementary_pdf_value=args.supplementary_pdf, no_move=args.no_move, model=args.model, tier=args.tier, warnings=warnings, metadata_lookup=metadata_lookup, temporary_files=cleanup)
+        cleanup = [draft_file, metadata_file, warnings_file, classification_file] + [_temporary_file(path) for path in args.temporary_file]
+        result = commit(args.pdf, args.note_name, draft, supplementary_pdf_value=args.supplementary_pdf, no_move=args.no_move, model=args.model, tier=args.tier, warnings=warnings, metadata_lookup=metadata_lookup, classification=classification, temporary_files=cleanup)
         print(json.dumps(result, ensure_ascii=False, indent=2))
     elif args.command == "attach-supplementary":
         section_file = _temporary_file(args.section_file)

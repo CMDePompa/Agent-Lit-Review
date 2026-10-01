@@ -18,9 +18,12 @@ LitNote-Agent/
 │       └── literature-intake/
 │           ├── SKILL.md                   # Main Codex workflow
 │           ├── note-schema.md             # Note fields and required sections
+│           ├── review-extraction.md       # Review extraction prompt and schema
 │           ├── research-context.md        # Project-specific relevance context
 │           ├── si-attachment.md           # Separated supplementary-PDF workflow
 │           ├── source-types.md            # Paper, review, textbook, and thesis rules
+│           ├── textbook-extraction.md     # Textbook chapter extraction prompt
+│           ├── thesis-chapter-extraction.md # Thesis subtype extraction rules
 │           └── zotero-metadata.md         # Optional local metadata policy
 ├── scripts/
 │   ├── literature_intake_io.py            # Safe file operations and provenance
@@ -30,7 +33,10 @@ LitNote-Agent/
 │   ├── Literature Dashboard.md            # Obsidian quick-start dashboard
 │   ├── Literature Database.base           # Obsidian Bases views
 │   ├── Templates/
-│   │   └── Literature Note Template.md    # Note template and properties
+│   │   ├── Literature Note Template.md    # Primary research note template
+│   │   ├── Review Note Template.md        # Review article note template
+│   │   ├── Textbook Chapter Note Template.md # Textbook chapter note template
+│   │   └── Thesis Synthesis Note Template.md # Thesis conclusion template
 │   └── Papers/                            # Generated literature notes
 ├── PDFs/
 │   ├── Inbox/                             # PDFs waiting for intake
@@ -117,17 +123,19 @@ Run `python -m unittest scripts/test_literature_intake_io.py` from the repositor
 
 ### Step 5: Add a source package
 
-Put a PDF in `PDFs/Inbox`. Filenames identify source types and pair supplementary information; the scientific content and provisional metadata must still come from the PDF itself.
+Put a PDF in `PDFs/Inbox`. Filenames help organize source packages and pair supplementary information; classification, scientific content, and provisional metadata come from the PDF itself.
 
 - **Articles:** `<Year> <Author(s)> - <Article Title>.pdf`
   - Example: `1993 Amundson et al. - Alignment of lamellar block copolymer microstructure.pdf`
-- **Review articles:** `REVIEW - <Year> <Author(s)> - <Article Title>.pdf`
-  - These use `source_type: review`, an article-style note, and Zotero article matching.
+- **Review articles:** `REVIEW - <Year> <Author(s)> - <Article Title>.pdf` is a naming convention.
+  - The skill classifies the PDF title and full section headings. Review phrases or no distinct methods section route to `document_type: review`, the review extraction prompt, and the Review Note Template. Uncertain cases default to `document_type: primary`. Both use Zotero article matching when available.
 - **Supplementary information:** prefix the entire matching article filename with `SI - `
   - Example: `SI - 1993 Amundson et al. - Alignment of lamellar block copolymer microstructure.pdf`
   - An exact pair can be processed together. SI is not a separate literature note.
 - **Textbook chapters:** `TEXTBOOK - <Year> <Author> - <Book Title> - Ch <NN> - <Chapter Title>.pdf`
+  - Chapter headings, learning objectives, worked examples, exercises, review questions, or other pedagogical structure route to `document_type: textbook_chapter` and the dedicated chapter template. Equations and variables use LaTeX math notation. Textbook chapters skip Zotero article lookup.
 - **Thesis chapters:** `THESIS - <Year> <Author> - <Thesis Title> - Ch <NN> - <Chapter Title>.pdf`
+  - PDF evidence of thesis identity selects `document_type: thesis_chapter`; chapter purpose selects the required `thesis_subtype`. Introductions reuse the review schema with specific aims, methods/theory chapters reuse the textbook schema with custom protocols, research chapters reuse the primary schema with a mapped aim, and concluding chapters use the Thesis Synthesis Note Template. Thesis chapters skip Zotero article lookup.
 
 Process textbooks and theses one chapter at a time whenever practical. This keeps the AI's context from being overwhelmed and keeps each note focused on one coherent source unit. Use two-digit chapter numbers so chapters sort correctly. Process a complete thesis only when explicitly requested and when the agent can read it adequately. Malformed reserved prefixes are reported and left untouched.
 
