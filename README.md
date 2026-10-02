@@ -1,4 +1,4 @@
-# LitNote Agent: an agentic coding workflow for turning research PDFs into structured Obsidian literature notes.
+# Agent Lit Review: an agentic coding workflow for turning research PDFs into structured Obsidian literature notes.
 
 This project turns research PDFs into structured notes in an Obsidian vault. A project-local Codex skill, [`literature-intake`](./.agents/skills/literature-intake/SKILL.md), reads one source at a time, drafts a note, links the PDF, and records what it processed. You review the draft against the source before relying on it.
 
@@ -9,7 +9,7 @@ Disclaimer: This project is provided as a research workflow template. Review gen
 ## Project structure
 
 ```text
-LitNote-Agent/
+Agent-Lit-Review/
 ├── README.md                              # Setup, usage, and customization guide
 ├── LICENSE                                # MIT license
 ├── .gitignore                             # Excludes local app state and generated content
