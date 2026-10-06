@@ -82,7 +82,7 @@ Reference-manager metadata is optional for journal articles. Choose any of these
 #### Set up Zotero Web API access
 
 1. Sign in at [Zotero's API Keys page](https://www.zotero.org/settings/keys). Copy your **numeric user ID** shown there; it is different from your Zotero username. Create a new private key for this workflow with **read access to your personal library**. This helper only reads item metadata, so it does not need write, file, or notes access. Copy the key when Zotero displays it.
-2. On Windows, set `ZOTERO_USER_ID` and `ZOTERO_API_KEY` as **user environment variables** (search Windows for “Edit environment variables for your account”). Restart Codex after saving them so new tasks inherit the values. For a one-time manual check in PowerShell, set them in that same terminal instead:
+2. On Windows, set `ZOTERO_USER_ID` and `ZOTERO_API_KEY` as **user environment variables** (search Windows for “Edit environment variables for your account”). The helper reads the saved values even if Codex was already running when you set them. A process variable takes precedence when present. For a one-time manual check in PowerShell, set them in that same terminal instead:
 
    ```powershell
    $env:ZOTERO_USER_ID = '123456'     # replace with your numeric Zotero user ID
@@ -101,7 +101,7 @@ Reference-manager metadata is optional for journal articles. Choose any of these
 
    The number should match `ZOTERO_USER_ID`, and the library-access value should be `True`. If Zotero denies access, check the key and its personal-library read permission. See [reference-metadata.md](./.agents/skills/literature-intake/reference-metadata.md) for a lookup example. Do not paste your key into chat or save it in the repository; this script does not load a `.env` file.
 
-For a lookup, save PDF-visible bibliographic fields as JSON in `data/tmp/request.json`, then run `python scripts/reference_metadata.py data/tmp/request.json --provider auto --output data/tmp/lookup.json`. Use `--provider zotero` or `--provider mendeley` to select one manager. API access is preferred when configured; a local export is available as fallback. If no confident match is available, intake continues with PDF-visible metadata, sets `metadata_source: "PDF"` and `metadata_review_needed: true`, and records a warning. Textbook and thesis intake skips the lookup. Exports and scratch files are ignored by Git.
+For a lookup, save PDF-visible bibliographic fields as JSON in `data/tmp/request.json`, then run `python scripts/reference_metadata.py data/tmp/request.json --provider auto --output data/tmp/lookup.json`. Use `--provider zotero` or `--provider mendeley` to select one manager. API access is preferred when configured; a local export is available as fallback. If Codex's restricted command environment reports `API lookup failed: URLError`, rerun the lookup with network access before relying on the export fallback. An API result has `export_path: null`. If no confident match is available, intake continues with PDF-visible metadata, sets `metadata_source: "PDF"` and `metadata_review_needed: true`, and records a warning. Textbook and thesis intake skips the lookup. Exports and scratch files are ignored by Git.
 
 ### Step 4: Customize the workflow
 

@@ -5,9 +5,10 @@ import os
 import sys
 import tempfile
 import unittest
+from types import SimpleNamespace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from urllib.error import URLError
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -28,6 +29,21 @@ class ReferenceMetadataTests(unittest.TestCase):
 
     def tearDown(self):
         self.tmp.cleanup()
+
+    def test_saved_windows_user_variables_are_available_to_intake_process(self):
+        registry_values = {"ZOTERO_USER_ID": "42", "ZOTERO_API_KEY": "private-key"}
+        registry = SimpleNamespace(
+            HKEY_CURRENT_USER=1,
+            OpenKey=MagicMock(),
+            QueryValueEx=lambda _key, name: (registry_values[name], 1),
+        )
+        with patch.dict(os.environ, {}, clear=True), patch.object(refs.sys, "platform", "win32"), \
+                patch.dict(sys.modules, {"winreg": registry}):
+            provider = refs.ZoteroProvider(self.root / "missing.json")
+            self.assertEqual(provider.user_id, "42")
+            self.assertTrue(provider.inspect_source()["api_available"])
+            os.environ["ZOTERO_USER_ID"] = "99"
+            self.assertEqual(refs._credential("ZOTERO_USER_ID"), "99")
 
     def test_zotero_csl_export_matches_with_standard_shape_and_stale_flag(self):
         path = self.root / "zotero-export.json"

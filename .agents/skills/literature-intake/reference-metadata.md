@@ -2,7 +2,7 @@
 
 Use reference-manager metadata only for the primary journal article in a source package, including review articles. Skip supplementary PDFs, textbooks, and theses. The selected PDF package remains the only source for scientific claims. Reference records supply bibliographic fields only; never use their abstracts, notes, tags, or narrative fields in a summary.
 
-Run `python scripts/reference_metadata.py --check-source` to inspect available Zotero and Mendeley sources. By default, `--provider auto` tries available Zotero sources, then Mendeley sources. Use `--provider zotero` or `--provider mendeley` when the user has chosen a manager. An available API is used before its local export, so regular manual export is optional. A local export remains a fallback when an API request fails or has no confident match. API credentials are never written to request files, notes, or provenance.
+Run `python scripts/reference_metadata.py --check-source` to inspect available Zotero and Mendeley sources. By default, `--provider auto` tries available Zotero sources, then Mendeley sources. Use `--provider zotero` or `--provider mendeley` when the user has chosen a manager. An available API is used before its local export, so regular manual export is optional. A local export remains a fallback when an API request fails or has no confident match. In Codex, a restricted command can block the API call while still reading a local export. If a lookup warns `API lookup failed: URLError`, rerun it with network-enabled command execution before treating the export result as the intended API lookup. An API match has `export_path: null`. API credentials are never written to request files, notes, or provenance.
 
 Supported sources:
 
@@ -12,7 +12,7 @@ Supported sources:
 ## Configure the Zotero Web API
 
 1. Sign in to [Zotero's API Keys page](https://www.zotero.org/settings/keys). Copy the numeric **user ID** shown there; it is not your username. Create a **new private key** for this workflow. Give it read access to your personal library. The helper sends only GET requests for item metadata and does not need write, notes, or file access. Copy the key when it is displayed.
-2. Set `ZOTERO_USER_ID` to that number and `ZOTERO_API_KEY` to the new key in the environment that launches the helper. On Windows, add both under “Edit environment variables for your account,” then restart Codex. Setting `$env:` values in a separate PowerShell window affects that window and its child processes only; an already-running Codex app will not inherit them. The helper does **not** load `.env` files.
+2. Set `ZOTERO_USER_ID` to that number and `ZOTERO_API_KEY` to the new key under Windows “Edit environment variables for your account.” The helper reads these saved user variables when its process does not already have them, including from an already-running Codex app. An explicitly set process value takes precedence. Setting `$env:` values in a separate PowerShell window affects that window and its child processes only. The helper does **not** load `.env` files.
 3. For a one-time manual run from the repository root, use the same PowerShell window for setup and the helper:
 
    ```powershell
@@ -21,7 +21,7 @@ Supported sources:
    python scripts/reference_metadata.py --provider zotero --check-source
    ```
 
-   `api_status: "configured_unverified"` means the variables are present; `--check-source` does not contact Zotero or validate the key. Do not print or share the key.
+   `api_status: "configured_unverified"` means the variables are present; `--check-source` does not contact Zotero or validate the key. Run this check from the same app or terminal that will perform intake. Do not print or share the key.
 4. Verify that the key works and belongs to the expected account, without placing it in a URL:
 
    ```powershell

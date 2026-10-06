@@ -10,6 +10,7 @@ import difflib
 import json
 import os
 import re
+import sys
 import unicodedata
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
@@ -22,6 +23,25 @@ ROOT = Path(__file__).resolve().parents[1]
 STALE_DAYS = 30
 FIELDS = ("title", "authors", "year", "journal", "doi")
 ARTICLE_TYPES = {"article", "article-journal", "journalarticle", "journal"}
+
+
+def _credential(name):
+    """Read a process variable, or a saved Windows user variable if absent.
+
+    A running Codex process may predate changes made in Windows Environment
+    Variables. An explicitly set process value, including an empty one, wins.
+    """
+    value = os.getenv(name)
+    if value is not None or sys.platform != "win32":
+        return value
+    try:
+        import winreg
+
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment") as key:
+            value, _ = winreg.QueryValueEx(key, name)
+        return str(value)
+    except (OSError, ValueError):
+        return None
 
 
 def normalize(value):
@@ -264,8 +284,8 @@ class ZoteroProvider(_LibraryProvider):
     name = "zotero"
 
     def __init__(self, export_path=ROOT / "data" / "zotero-export.json", *, api_key=None, user_id=None, now=None):
-        self.user_id = user_id if user_id is not None else os.getenv("ZOTERO_USER_ID")
-        super().__init__([export_path], api_key if api_key is not None else os.getenv("ZOTERO_API_KEY"), now)
+        self.user_id = user_id if user_id is not None else _credential("ZOTERO_USER_ID")
+        super().__init__([export_path], api_key if api_key is not None else _credential("ZOTERO_API_KEY"), now)
 
     def _api_ready(self):
         return bool(self.token and self.user_id)
@@ -291,7 +311,7 @@ class MendeleyProvider(_LibraryProvider):
 
     def __init__(self, export_paths=None, *, access_token=None, now=None):
         paths = export_paths or [ROOT / "data" / "mendeley-export.json", ROOT / "data" / "mendeley-export.bib"]
-        super().__init__(paths, access_token if access_token is not None else os.getenv("MENDELEY_ACCESS_TOKEN"), now)
+        super().__init__(paths, access_token if access_token is not None else _credential("MENDELEY_ACCESS_TOKEN"), now)
 
     def _api_items(self, request):
         url = "https://api.mendeley.com/documents?" + urlencode({"view": "bib", "limit": 500})
