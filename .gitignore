@@ -23,6 +23,8 @@ Literature Notes/Papers/*
 
 # Local metadata, temporary state, and provenance
 data/zotero-export.json
+data/mendeley-export.json
+data/mendeley-export.bib
 data/intake_failures.json
 data/tmp/*
 !data/tmp/.gitkeep

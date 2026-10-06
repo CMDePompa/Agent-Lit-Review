@@ -13,10 +13,11 @@ chapter_title: ""
 page_scope: ""
 summary_scope: ""
 metadata_source: "PDF"
-zotero_item_key: ""
-zotero_match_method: ""
-zotero_export_modified_at: ""
-zotero_export_age_days: null
+reference_provider: ""
+reference_item_key: ""
+reference_match_method: ""
+reference_export_modified_at: ""
+reference_export_age_days: null
 supplementary_pdf: null
 pdf: []
 research_topics: []

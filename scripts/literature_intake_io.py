@@ -46,7 +46,7 @@ THESIS_SUBTYPES = {
     "research_body": (PAPER_SECTIONS, "Mapped Thesis Aim"),
     "synthesis_conclusion": (THESIS_SYNTHESIS_SECTIONS, None),
 }
-VERSION = "literature-intake-v6"
+VERSION = "literature-intake-v7"
 TAG_LIST_PROPERTIES = (
     "research_topics", "methodology", "evidence_type", "polymer_system", "morphologies", "paper_role",
 )
@@ -899,6 +899,21 @@ def commit(pdf_value, note_name, markdown, *, supplementary_pdf_value=None, no_m
     if metadata_lookup and metadata_lookup.get("status") in {"unavailable", "not_found", "ambiguous", "conflict"}:
         markdown = _set_or_add_frontmatter(markdown, "metadata_source", "PDF")
         markdown = _set_or_add_frontmatter(markdown, "metadata_review_needed", True)
+    elif metadata_lookup and metadata_lookup.get("status") == "matched":
+        markdown = _set_or_add_frontmatter(markdown, "metadata_source", metadata_lookup.get("provider", "PDF"))
+        markdown = _set_or_add_frontmatter(markdown, "metadata_review_needed", bool(metadata_lookup.get("metadata_review_needed")))
+    if metadata_lookup:
+        for note_field, result_field in (
+            ("reference_provider", "provider"),
+            ("reference_item_key", "item_key"),
+            ("reference_match_method", "match_method"),
+            ("reference_export_modified_at", "export_modified_at"),
+            ("reference_export_age_days", "export_age_days"),
+        ):
+            value = metadata_lookup.get(result_field)
+            if value is None and note_field != "reference_export_age_days":
+                value = ""
+            markdown = _set_or_add_frontmatter(markdown, note_field, value)
     markdown = _remove_obsolete_note_properties(markdown)
     markdown = _set_default_tag_properties(markdown)
     markdown = _remove_legacy_pdf_body_links(markdown)
@@ -929,9 +944,9 @@ def commit(pdf_value, note_name, markdown, *, supplementary_pdf_value=None, no_m
     if metadata_lookup:
         provenance["metadata_verification"] = {
             key: metadata_lookup.get(key) for key in (
-                "status", "match_method", "export_path", "export_modified_at", "export_age_days",
-                "stale", "metadata_review_needed", "reason", "zotero_item_key", "missing_fields",
-                "conflicting_fields",
+                "status", "provider", "match_method", "item_key", "item_type", "export_path",
+                "export_modified_at", "export_age_days", "stale", "metadata_review_needed",
+                "reason", "missing_fields", "conflicting_fields",
             ) if key in metadata_lookup
         }
     staged_note = staged_record = None

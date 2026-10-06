@@ -24,11 +24,12 @@ Agent-Lit-Review/
 │           ├── source-types.md            # Paper, review, textbook, and thesis rules
 │           ├── textbook-extraction.md     # Textbook chapter extraction prompt
 │           ├── thesis-chapter-extraction.md # Thesis subtype extraction rules
-│           └── zotero-metadata.md         # Optional local metadata policy
+│           └── reference-metadata.md      # Zotero/Mendeley metadata policy
 ├── scripts/
 │   ├── literature_intake_io.py            # Safe file operations and provenance
-│   ├── zotero_metadata.py                 # Local CSL-JSON metadata matching
-│   └── test_literature_intake_io.py       # Workflow regression tests
+│   ├── reference_metadata.py              # Local and API reference matching
+│   ├── test_literature_intake_io.py       # Workflow regression tests
+│   └── test_reference_metadata.py         # Provider regression tests
 ├── Literature Notes/
 │   ├── Literature Dashboard.md            # Obsidian quick-start dashboard
 │   ├── Literature Database.base           # Obsidian Bases views
@@ -42,7 +43,9 @@ Agent-Lit-Review/
 │   ├── Inbox/                             # PDFs waiting for intake
 │   └── Ingested/                          # Processed PDFs
 └── data/
-    ├── zotero-export.json                 # Your Zotero export (add in Step 3)
+    ├── zotero-export.json                 # Optional Zotero CSL-JSON export
+    ├── mendeley-export.json               # Optional Mendeley CSL-JSON export
+    ├── mendeley-export.bib                # Optional Mendeley BibTeX export
     ├── tmp/                               # Local scratch files and unresolved flags
     └── processing_records/                # Intake provenance records
 ```
@@ -54,7 +57,7 @@ The repository includes zero-byte `.gitkeep` placeholder files so a fresh clone 
 - Codex (or another local agentic AI software, but reference material will continue to assume Codex) with access to a local project folder.
 - [Obsidian](https://obsidian.md/) to browse the notes and database. The notes are Markdown files, so you can also read them in another editor.
 - Python 3 to run the small, local file and metadata helpers. They use the Python standard library; there is no package installation step.
-- For **journal articles**, a Zotero library export in CSL JSON format. The export is read from disk; the workflow does not connect to Zotero's online service.
+- For **journal articles**, either a local Zotero/Mendeley export or credentials for the chosen reference-manager API. No reference-manager setup is required for PDF-only fallback.
 
 ## Get started
 
@@ -66,9 +69,37 @@ Download or clone this repository. Keep its folders together, including the hidd
 
 Open the repository folder as an Obsidian vault and as a local project in Codex. Start with the [Literature Dashboard](Literature%20Notes/Literature%20Dashboard.md) for the day-to-day instructions.
 
-### Step 3: Add Zotero metadata
+### Step 3: Configure reference metadata
 
-Zotero metadata is optional. To use it for journal articles, export your Zotero library as **CSL JSON** and save it as `data/zotero-export.json`. Without a readable export, intake continues with PDF-visible metadata, sets `metadata_source: "PDF"` and `metadata_review_needed: true`, and records a warning. Textbook and thesis intake does not use Zotero.
+Reference-manager metadata is optional for journal articles. Choose any of these sources:
+
+- Zotero Web API v3: create a read-only key for your personal library, then set `ZOTERO_API_KEY` and your numeric `ZOTERO_USER_ID` in the environment used to run Codex or the helper. See the setup steps below.
+- Mendeley Documents API: set an OAuth access token as `MENDELEY_ACCESS_TOKEN` in your local environment. The token must authorize your documents; this helper does not perform OAuth login or refresh.
+- Local export: save Zotero CSL JSON as `data/zotero-export.json`, or Mendeley CSL JSON/BibTeX as `data/mendeley-export.json` / `data/mendeley-export.bib`.
+
+#### Set up Zotero Web API access
+
+1. Sign in at [Zotero's API Keys page](https://www.zotero.org/settings/keys). Copy your **numeric user ID** shown there; it is different from your Zotero username. Create a new private key for this workflow with **read access to your personal library**. This helper only reads item metadata, so it does not need write, file, or notes access. Copy the key when Zotero displays it.
+2. On Windows, set `ZOTERO_USER_ID` and `ZOTERO_API_KEY` as **user environment variables** (search Windows for “Edit environment variables for your account”). Restart Codex after saving them so new tasks inherit the values. For a one-time manual check in PowerShell, set them in that same terminal instead:
+
+   ```powershell
+   $env:ZOTERO_USER_ID = '123456'     # replace with your numeric Zotero user ID
+   $env:ZOTERO_API_KEY = 'your-key'    # replace with your new private key
+   python scripts/reference_metadata.py --provider zotero --check-source
+   ```
+
+3. In the `--check-source` output, `api_status: "configured_unverified"` means both variables were found; it **does not verify the key**. To test access without displaying the key, run this in the same PowerShell session:
+
+   ```powershell
+   $headers = @{ 'Zotero-API-Key' = $env:ZOTERO_API_KEY; 'Zotero-API-Version' = '3' }
+   $keyInfo = Invoke-RestMethod -Uri 'https://api.zotero.org/keys/current' -Headers $headers
+   $keyInfo.userID
+   $keyInfo.access.user.library
+   ```
+
+   The number should match `ZOTERO_USER_ID`, and the library-access value should be `True`. If Zotero denies access, check the key and its personal-library read permission. See [reference-metadata.md](./.agents/skills/literature-intake/reference-metadata.md) for a lookup example. Do not paste your key into chat or save it in the repository; this script does not load a `.env` file.
+
+For a lookup, save PDF-visible bibliographic fields as JSON in `data/tmp/request.json`, then run `python scripts/reference_metadata.py data/tmp/request.json --provider auto --output data/tmp/lookup.json`. Use `--provider zotero` or `--provider mendeley` to select one manager. API access is preferred when configured; a local export is available as fallback. If no confident match is available, intake continues with PDF-visible metadata, sets `metadata_source: "PDF"` and `metadata_review_needed: true`, and records a warning. Textbook and thesis intake skips the lookup. Exports and scratch files are ignored by Git.
 
 ### Step 4: Customize the workflow
 
@@ -113,13 +144,13 @@ The skill has a few focused reference files:
 | --- | --- |
 | [`source-types.md`](./.agents/skills/literature-intake/source-types.md) | You want different source types, chapter rules, or note outlines. Also update the matching rules and tests in `literature_intake_io.py`. |
 | [`si-attachment.md`](./.agents/skills/literature-intake/si-attachment.md) | You want different rules for supplementary PDFs. Update matching guidance in the Dashboard and skill too. |
-| [`zotero-metadata.md`](./.agents/skills/literature-intake/zotero-metadata.md) | You want to change the article metadata policy. Update [`zotero_metadata.py`](scripts/zotero_metadata.py), SKILL.md, tests, and the Dashboard as well. |
+| [`reference-metadata.md`](./.agents/skills/literature-intake/reference-metadata.md) | You want to change the article metadata policy. Update [`reference_metadata.py`](scripts/reference_metadata.py), SKILL.md, and tests as well. |
 
-The current Zotero rule is: a missing, unreadable, or unmatched export does not stop **article** intake. The note uses only metadata visible in the PDF, sets `metadata_source: "PDF"` and `metadata_review_needed: true`, and records a warning. An export older than 30 days gets a stale warning. Supplementary PDFs, textbooks, and theses skip the lookup.
+The reference rule is: an unavailable, ambiguous, conflicting, or unmatched source does not stop **article** intake. The note uses only metadata visible in the PDF, sets `metadata_source: "PDF"` and `metadata_review_needed: true`, and records a warning. A local export older than 30 days gets a stale warning. Supplementary PDFs, textbooks, and theses skip the lookup.
 
 #### 4.5 Check your customization
 
-Run `python -m unittest scripts/test_literature_intake_io.py` from the repository folder. You can also ask Codex, “Validate the structure and frontmatter of the project-local `literature-intake` skill.” Open the Dashboard and Database in Obsidian and test their links and views.
+Run `python -m unittest scripts/test_literature_intake_io.py scripts/test_reference_metadata.py` from the repository folder. You can also ask Codex, “Validate the structure and frontmatter of the project-local `literature-intake` skill.” Open the Dashboard and Database in Obsidian and test their links and views.
 
 ### Step 5: Add a source package
 
@@ -128,14 +159,14 @@ Put a PDF in `PDFs/Inbox`. Filenames help organize source packages and pair supp
 - **Articles:** `<Year> <Author(s)> - <Article Title>.pdf`
   - Example: `1993 Amundson et al. - Alignment of lamellar block copolymer microstructure.pdf`
 - **Review articles:** `REVIEW - <Year> <Author(s)> - <Article Title>.pdf` is a naming convention.
-  - The skill classifies the PDF title and full section headings. Review phrases or no distinct methods section route to `document_type: review`, the review extraction prompt, and the Review Note Template. Uncertain cases default to `document_type: primary`. Both use Zotero article matching when available.
+  - The skill classifies the PDF title and full section headings. Review phrases or no distinct methods section route to `document_type: review`, the review extraction prompt, and the Review Note Template. Uncertain cases default to `document_type: primary`. Both use reference-manager matching when available.
 - **Supplementary information:** prefix the entire matching article filename with `SI - `
   - Example: `SI - 1993 Amundson et al. - Alignment of lamellar block copolymer microstructure.pdf`
   - An exact pair can be processed together. SI is not a separate literature note.
 - **Textbook chapters:** `TEXTBOOK - <Year> <Author> - <Book Title> - Ch <NN> - <Chapter Title>.pdf`
-  - Chapter headings, learning objectives, worked examples, exercises, review questions, or other pedagogical structure route to `document_type: textbook_chapter` and the dedicated chapter template. Equations and variables use LaTeX math notation. Textbook chapters skip Zotero article lookup.
+  - Chapter headings, learning objectives, worked examples, exercises, review questions, or other pedagogical structure route to `document_type: textbook_chapter` and the dedicated chapter template. Equations and variables use LaTeX math notation. Textbook chapters skip reference-manager lookup.
 - **Thesis chapters:** `THESIS - <Year> <Author> - <Thesis Title> - Ch <NN> - <Chapter Title>.pdf`
-  - PDF evidence of thesis identity selects `document_type: thesis_chapter`; chapter purpose selects the required `thesis_subtype`. Introductions reuse the review schema with specific aims, methods/theory chapters reuse the textbook schema with custom protocols, research chapters reuse the primary schema with a mapped aim, and concluding chapters use the Thesis Synthesis Note Template. Thesis chapters skip Zotero article lookup.
+  - PDF evidence of thesis identity selects `document_type: thesis_chapter`; chapter purpose selects the required `thesis_subtype`. Introductions reuse the review schema with specific aims, methods/theory chapters reuse the textbook schema with custom protocols, research chapters reuse the primary schema with a mapped aim, and concluding chapters use the Thesis Synthesis Note Template. Thesis chapters skip reference-manager lookup.
 
 Process textbooks and theses one chapter at a time whenever practical. This keeps the AI's context from being overwhelmed and keeps each note focused on one coherent source unit. Use two-digit chapter numbers so chapters sort correctly. Process a complete thesis only when explicitly requested and when the agent can read it adequately. Malformed reserved prefixes are reported and left untouched.
 
@@ -197,7 +228,7 @@ mkdir -p .claude/skills
 cp -R .agents/skills/literature-intake .claude/skills/
 ```
 
-Then open the repository root in Claude Code and ask it to use the `literature-intake` skill. The same Python helpers, note template, collision checks, and local Zotero export apply. See [Anthropic's Agent Skills documentation](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview) for its current discovery rules.
+Then open the repository root in Claude Code and ask it to use the `literature-intake` skill. The same Python helpers, note template, collision checks, and reference-manager options apply. See [Anthropic's Agent Skills documentation](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview) for its current discovery rules.
 
 Claude Code does not include Anthropic's pre-built PDF Agent Skill, so PDF-reading behavior depends on the tools available in that Claude Code environment. Test one disposable source first and ask Claude to leave it in Inbox. If the agent cannot inspect the complete PDF—including methods, results, figures, and limitations—stop rather than creating a partial note. Claude scheduling is also separate from Codex scheduled tasks; configure recurring runs using the automation mechanism provided by your chosen environment.
 

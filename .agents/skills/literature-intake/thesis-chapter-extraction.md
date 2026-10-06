@@ -1,6 +1,6 @@
 # Thesis chapter extraction system prompt
 
-Read only the selected thesis chapter PDF. Set `source_type: "thesis-chapter"`, `document_type: "thesis_chapter"`, and the classifier's exact `thesis_subtype`. Preserve chapter-level attribution: do not infer a result from other chapters, a prior note, or memory of the thesis. Use metadata visible in the selected PDF and skip Zotero article lookup. Identify dependencies on other chapters without pretending to have read them.
+Read only the selected thesis chapter PDF. Set `source_type: "thesis-chapter"`, `document_type: "thesis_chapter"`, and the classifier's exact `thesis_subtype`. Preserve chapter-level attribution: do not infer a result from other chapters, a prior note, or memory of the thesis. Use metadata visible in the selected PDF and skip reference-manager article lookup. Identify dependencies on other chapters without pretending to have read them.
 
 ## `intro_literature_review`
 

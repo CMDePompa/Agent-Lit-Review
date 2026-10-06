@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import literature_intake_io as intake
-import zotero_metadata
+import reference_metadata
 
 
 class IntakeFileTests(unittest.TestCase):
@@ -80,12 +80,11 @@ class IntakeFileTests(unittest.TestCase):
         self.assertFalse((self.root / "data" / "tmp" / "intake_failures.json").exists())
 
     def test_missing_zotero_export_falls_back_to_pdf_and_cleans_temporary_file(self):
-        lookup = zotero_metadata.lookup(
-            {"source_type": "paper", "title": "Visible PDF title", "authors": ["A. Author"], "year": 2024},
-            export_path=self.root / "data" / "missing-zotero-export.json",
-        )
+        lookup = reference_metadata.ZoteroProvider(
+            self.root / "data" / "missing-zotero-export.json", api_key="", user_id="",
+        ).lookup({"source_type": "paper", "title": "Visible PDF title", "authors": ["A. Author"], "year": 2024})
         self.assertEqual(lookup["status"], "unavailable")
-        self.assertEqual(lookup["metadata_source"], "PDF")
+        self.assertEqual(lookup["provider"], "pdf_fallback")
         self.assertTrue(lookup["metadata_review_needed"])
         temporary = self.root / "data" / "tmp" / "draft.md"
         temporary.parent.mkdir(parents=True)
@@ -104,13 +103,32 @@ class IntakeFileTests(unittest.TestCase):
         export = self.root / "data" / "zotero-export.json"
         export.parent.mkdir(parents=True)
         export.write_text("not valid JSON", encoding="utf-8")
-        lookup = zotero_metadata.lookup(
-            {"source_type": "paper", "title": "Visible PDF title"}, export_path=export,
-        )
+        lookup = reference_metadata.ZoteroProvider(export, api_key="", user_id="").lookup(
+            {"source_type": "paper", "title": "Visible PDF title"})
         self.assertEqual(lookup["status"], "unavailable")
-        self.assertEqual(lookup["metadata_source"], "PDF")
+        self.assertEqual(lookup["provider"], "pdf_fallback")
         self.assertTrue(lookup["metadata_review_needed"])
         self.assertIn("could not be read", lookup["warnings"][0])
+
+    def test_mendeley_lookup_fields_are_saved_without_zotero_specific_keys(self):
+        lookup = {
+            "status": "matched", "provider": "mendeley", "match_method": "exact-doi",
+            "item_key": "MEND-123", "item_type": "article-journal",
+            "metadata": {"title": "Paper", "authors": ["Ada Author"], "year": 2024,
+                         "journal": "Example Journal", "doi": "10.1000/example"},
+            "metadata_review_needed": False, "missing_fields": [], "conflicting_fields": [],
+            "export_path": None, "export_modified_at": None, "export_age_days": None,
+            "stale": False, "warnings": [],
+        }
+        result = intake.commit(self.pdf, "paper", self.note_text, no_move=True,
+                               metadata_lookup=lookup, root=self.root)
+        saved = (self.root / result["generated_note_path"]).read_text(encoding="utf-8")
+        self.assertEqual(intake._frontmatter_value(saved, "metadata_source"), "mendeley")
+        self.assertEqual(intake._frontmatter_value(saved, "reference_item_key"), "MEND-123")
+        self.assertEqual(intake._frontmatter_value(saved, "reference_provider"), "mendeley")
+        self.assertEqual(result["metadata_verification"]["provider"], "mendeley")
+        self.assertEqual(result["metadata_verification"]["item_key"], "MEND-123")
+        self.assertNotIn("zotero_item_key", result["metadata_verification"])
 
     def test_existing_note_collision(self):
         note = self.root / "Literature Notes" / "Papers" / "paper.md"
@@ -292,7 +310,8 @@ class IntakeFileTests(unittest.TestCase):
             "author": [{"given": "A.", "family": "Researcher"}],
             "issued": {"date-parts": [[2020]]}, "container-title": "Example Journal",
         }]), encoding="utf-8")
-        result = zotero_metadata.lookup({"source_type": "review", "title": "Review title", "doi": "10.1000/review"}, export_path=export)
+        result = reference_metadata.ZoteroProvider(export, api_key="", user_id="").lookup(
+            {"source_type": "review", "title": "Review title", "doi": "10.1000/review"})
         self.assertEqual(result["status"], "matched")
         self.assertEqual(result["match_method"], "exact-doi")
 
