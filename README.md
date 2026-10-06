@@ -79,6 +79,8 @@ Reference-manager metadata is optional for journal articles. Choose any of these
 - Mendeley Documents API: set an OAuth access token as `MENDELEY_ACCESS_TOKEN` in your local environment. The token must authorize your documents; this helper does not perform OAuth login or refresh.
 - Local export: save Zotero CSL JSON as `data/zotero-export.json`, or Mendeley CSL JSON/BibTeX as `data/mendeley-export.json` / `data/mendeley-export.bib`.
 
+Zotero also has a **local desktop API**. Its Settings → Advanced option, “Allow other applications on this computer to communicate with Zotero,” enables `http://localhost:23119/api/` for applications that use that API. Agent Lit Review currently uses Zotero's **Web API** at `https://api.zotero.org` and does not connect to the local desktop API, so this setting is not required here and no localhost address needs to be configured. If a different application uses Zotero's local API, enable the option and keep Zotero running. See [Zotero's local API documentation](https://www.zotero.org/support/dev/web_api/v3/local_api).
+
 #### Set up Zotero Web API access
 
 1. Sign in at [Zotero's API Keys page](https://www.zotero.org/settings/keys). Copy your **numeric user ID** shown there; it is different from your Zotero username. Create a new private key for this workflow with **read access to your personal library**. This helper only reads item metadata, so it does not need write, file, or notes access. Copy the key when Zotero displays it.
