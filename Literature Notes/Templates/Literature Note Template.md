@@ -59,6 +59,10 @@ metadata_review_needed: true
 
 ## Suggested Topics
 
+## Vault Connections
+
+<!-- Generated from metadata by the intake commit helper. Do not draft links here. -->
+
 ## My Notes
 
 <!-- Human-owned section. The intake skill never edits existing notes. -->

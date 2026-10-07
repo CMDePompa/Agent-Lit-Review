@@ -543,6 +543,53 @@ def _set_default_tag_properties(markdown):
     return markdown
 
 
+def _optional_frontmatter_list(markdown, key):
+    """Read a list when present; old vault notes may omit the property."""
+    block, _, _ = _frontmatter(markdown)
+    if not re.search(r"^" + re.escape(key) + r":", block, re.M):
+        return []
+    return _frontmatter_list_values(markdown, key)
+
+
+def _vault_connections(markdown, note, root):
+    """Find the most relevant existing notes using only frontmatter overlap."""
+    authors = set(_optional_frontmatter_list(markdown, "authors"))
+    topics = set(_optional_frontmatter_list(markdown, "research_topics"))
+    matches = []
+    papers = root / "Literature Notes" / "Papers"
+    if papers.exists():
+        for path in papers.rglob("*.md"):
+            if path == note or not path.is_file():
+                continue
+            try:
+                existing = path.read_text(encoding="utf-8")
+                shared_authors = sorted(authors.intersection(_optional_frontmatter_list(existing, "authors")))
+                shared_topics = sorted(topics.intersection(_optional_frontmatter_list(existing, "research_topics")))
+            except (OSError, UnicodeError, ValueError):
+                continue
+            if shared_authors or shared_topics:
+                matches.append((path, shared_authors, shared_topics))
+    matches.sort(key=lambda item: (-(len(item[1]) + len(item[2])), -len(item[1]), item[0].as_posix().casefold()))
+    lines = []
+    for path, shared_authors, shared_topics in matches[:5]:
+        reasons = []
+        if shared_authors:
+            reasons.append(f"Shared author ({shared_authors[0]})")
+        if shared_topics:
+            reasons.append(f"{'shared' if reasons else 'Shared'} topic #{shared_topics[0]}")
+        lines.append(f"- {'; '.join(reasons)}: [[{path.name}]]")
+    return "\n".join(lines) if lines else "None identified at intake."
+
+
+def _inject_vault_connections(markdown, connections):
+    """Replace any draft placeholder and place generated links before My Notes."""
+    markdown = re.sub(r"(?ms)^## Vault Connections[ \t]*\n.*?(?=^## |\Z)", "", markdown)
+    heading = re.search(r"(?m)^## My Notes[ \t]*$", markdown)
+    if heading is None:
+        raise ValueError("Missing section: My Notes")
+    return markdown[:heading.start()] + f"## Vault Connections\n\n{connections}\n\n" + markdown[heading.start():]
+
+
 def _set_frontmatter(markdown, key, value, *, quoted=False):
     block, start, end = _frontmatter(markdown)
     replacement = json.dumps(value, ensure_ascii=False) if quoted else str(value)
@@ -918,6 +965,7 @@ def commit(pdf_value, note_name, markdown, *, supplementary_pdf_value=None, no_m
     markdown = _set_default_tag_properties(markdown)
     markdown = _remove_legacy_pdf_body_links(markdown)
     validate_note(markdown)
+    markdown = _inject_vault_connections(markdown, _vault_connections(markdown, note, root))
     timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
     combined_warnings = list(warnings or [])
     for warning in (metadata_lookup or {}).get("warnings", []):

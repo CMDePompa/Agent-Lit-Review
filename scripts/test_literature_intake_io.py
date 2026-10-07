@@ -165,6 +165,69 @@ class IntakeFileTests(unittest.TestCase):
         self.assertIsNone(result["selected_codex_tier"])
         self.assertEqual(len(result["pdf_sha256"]), 64)
 
+    def test_commit_discovers_metadata_connections_and_preserves_human_sections(self):
+        papers = self.root / "Literature Notes" / "Papers"
+        papers.mkdir(parents=True)
+        existing = {
+            "1993 Amundson et al. - Alignment.md": (
+                '---\nauthors: ["Karl Amundson"]\nresearch_topics: ["electric-fields"]\n---\n'
+                '## Connections to Other Papers\n\nHuman connection stays.\n'
+            ),
+            "2021 Smith et al. - Polymer Self-Assembly.md": (
+                '---\nauthors:\n  - "Other Author"\nresearch_topics:\n  - "sequence-disorder"\n---\n'
+                '## My Notes\n\nHuman observation stays.\n'
+            ),
+            "Unrelated.md": '---\nauthors: ["Other Author"]\nresearch_topics: ["unrelated"]\n---\n',
+        }
+        for name, content in existing.items():
+            (papers / name).write_text(content, encoding="utf-8")
+        draft = self.note_text.replace(
+            "source_type: paper\n",
+            'source_type: paper\nauthors: ["Karl Amundson"]\nresearch_topics: ["sequence-disorder"]\n', 1,
+        )
+        draft = draft.replace("## My Notes\n\n", "## My Notes\n\n<!-- Human-owned placeholder. -->\n\n", 1)
+        result = intake.commit(self.pdf, "paper", draft, no_move=True, root=self.root)
+        saved = (self.root / result["generated_note_path"]).read_text(encoding="utf-8")
+        connections = intake._section_body(saved, "Vault Connections")
+        self.assertIn("- Shared author (Karl Amundson): [[1993 Amundson et al. - Alignment.md]]", connections)
+        self.assertIn("- Shared topic #sequence-disorder: [[2021 Smith et al. - Polymer Self-Assembly.md]]", connections)
+        self.assertNotIn("Unrelated.md", connections)
+        self.assertLess(saved.index("## Vault Connections"), saved.index("## My Notes"))
+        self.assertEqual(saved.count("## Vault Connections"), 1)
+        self.assertIn("<!-- Human-owned placeholder. -->", intake._section_body(saved, "My Notes"))
+        self.assertFalse(intake._section_body(saved, "Connections to Other Papers").strip())
+        for name, content in existing.items():
+            self.assertEqual((papers / name).read_text(encoding="utf-8"), content)
+
+    def test_commit_limits_connections_to_five_most_relevant_notes(self):
+        papers = self.root / "Literature Notes" / "Papers"
+        papers.mkdir(parents=True)
+        for index in range(6):
+            topics = '["shared", "extra"]' if index == 5 else '["shared"]'
+            (papers / f"match-{index}.md").write_text(
+                f'---\nauthors: []\nresearch_topics: {topics}\n---\n', encoding="utf-8",
+            )
+        draft = self.note_text.replace(
+            "source_type: paper\n", 'source_type: paper\nresearch_topics: ["shared", "extra"]\n', 1,
+        )
+        result = intake.commit(self.pdf, "paper", draft, no_move=True, root=self.root)
+        saved = (self.root / result["generated_note_path"]).read_text(encoding="utf-8")
+        connections = intake._section_body(saved, "Vault Connections")
+        self.assertEqual(connections.count("[["), 5)
+        self.assertIn("[[match-5.md]]", connections)
+        self.assertNotIn("[[match-4.md]]", connections)
+
+    def test_commit_writes_no_connections_message_when_no_metadata_matches(self):
+        papers = self.root / "Literature Notes" / "Papers"
+        papers.mkdir(parents=True)
+        (papers / "Unrelated.md").write_text(
+            '---\nauthors: ["Someone Else"]\nresearch_topics: ["other-topic"]\n---\n', encoding="utf-8",
+        )
+        result = intake.commit(self.pdf, "paper", self.note_text, no_move=True, root=self.root)
+        saved = (self.root / result["generated_note_path"]).read_text(encoding="utf-8")
+        self.assertEqual(intake._section_body(saved, "Vault Connections").strip(), "None identified at intake.")
+        self.assertFalse(intake._section_body(saved, "Connections to Other Papers").strip())
+
     def test_commit_records_selected_model_and_tier(self):
         legacy_draft = self.note_text.replace("source_type: paper\n", 'source_type: paper\nmodel: "old"\nprompt_version: "old"\nprocessed_at: "old"\n', 1)
         result = intake.commit(self.pdf, "paper", legacy_draft, no_move=True, model="gpt-example", tier="high", root=self.root)
@@ -337,6 +400,9 @@ class IntakeFileTests(unittest.TestCase):
         self.assertNotIn("primary.pdf", saved)
         self.assertNotIn("supplementary.pdf", saved)
         self.assertEqual(intake._frontmatter_value(saved, "research_topics"), "[]")
+        self.assertEqual(saved.count("## Vault Connections"), 1)
+        self.assertIn("None identified at intake.", intake._section_body(saved, "Vault Connections"))
+        self.assertNotIn("Generated from metadata by the intake commit helper", saved)
 
     def test_commit_accepts_obsidian_block_style_tag_lists(self):
         draft = self.note_text.replace(
