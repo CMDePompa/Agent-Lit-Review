@@ -40,21 +40,22 @@ Use $literature-intake to inspect the Inbox and report what is waiting.
 ```
 
 ```text
-Use $literature-intake to process the next paper.
+Use $literature-intake to process the next eligible source package. As soon as you select its PDF, rename this chat to “LitNote — <PDF filename without .pdf>”. Keep that title even if processing fails. If no source is eligible, leave the chat title unchanged. 
+
 ```
 
 ```text
-Use $literature-intake to process this paper: PDFs/Inbox/example.pdf
+Use $literature-intake to process this paper: PDFs/Inbox/example.pdf. As soon as you select its PDF, rename this chat to “LitNote — <PDF filename without .pdf>”. Keep that title even if processing fails. If no source is eligible, leave the chat title unchanged. 
 ```
 
 ```text
-Use $literature-intake to process the next paper but leave the PDF in Inbox.
+Use $literature-intake to process the next paper but leave the PDF in Inbox. As soon as you select its PDF, rename this chat to “LitNote — <PDF filename without .pdf>”. Keep that title even if processing fails. If no source is eligible, leave the chat title unchanged. 
 ```
 
 After fixing a flagged source, ask:
 
 ```text
-Use $literature-intake to retry this paper: PDFs/Inbox/example.pdf
+Use $literature-intake to retry this paper: PDFs/Inbox/example.pdf. 
 ```
 
 An Inbox with no eligible primary PDF produces no new note. Existing note names or same-name PDFs in `Ingested` stop that package rather than being overwritten; the skill flags it and continues with another package on the next run. If a supplementary PDF arrives after its parent article was processed, ask Codex to use `$literature-intake` to attach that exact-matched SI to the existing note.
