@@ -178,14 +178,20 @@ Next you may prompt your AI to use the literature-intake skill, using the model 
 
 Example prompts:
 
+To see what's in the inbox:
 ```text
 Use $literature-intake to inspect the Inbox and report what is waiting.
 ```
 
-Then process one source:
+To process a source:
+```
+Use $literature-intake to process the next eligible source package. As soon as you select its PDF, rename this chat to “LitNote — <PDF filename without .pdf>”. Keep that title even if processing fails. If no source is eligible, leave the chat title unchanged. 
+```
+
+To direct the skill to process one source in particular:
 
 ```text
-Use $literature-intake to process this paper: PDFs/Inbox/example.pdf
+Use $literature-intake to process this paper: PDFs/Inbox/example.pdf. As soon as you select its PDF, rename this chat to “LitNote — <PDF filename without .pdf>”. Keep that title even if processing fails. If no source is eligible, leave the chat title unchanged. 
 ```
 
 A successful run moves the PDF to `PDFs/Ingested`, unless you ask Codex to leave it in Inbox. The skill stops on file collisions instead of overwriting notes or PDFs and creates a compact record in `data/processing_records`. If a source package cannot be processed, the skill leaves its PDFs in Inbox, records the reason under **Needs attention** on the [Dashboard](Literature%20Notes/Literature%20Dashboard.md), and skips that package on future “next paper” runs. The next run can continue with another eligible package.
