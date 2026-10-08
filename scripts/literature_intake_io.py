@@ -46,11 +46,10 @@ THESIS_SUBTYPES = {
     "research_body": (PAPER_SECTIONS, "Mapped Thesis Aim"),
     "synthesis_conclusion": (THESIS_SYNTHESIS_SECTIONS, None),
 }
-VERSION = "literature-intake-v7"
-TAG_LIST_PROPERTIES = (
-    "research_topics", "methodology", "evidence_type", "polymer_system", "morphologies", "paper_role",
-)
-TAG_PROPERTIES = (*TAG_LIST_PROPERTIES, "context_summary")
+VERSION = "literature-intake-v2.0.0"
+TAG_LIST_PROPERTIES = ('research_topics', 'methodology', 'evidence_type', 'polymer_system', 'morphologies', 'paper_role')
+DOMAIN_TEXT_PROPERTIES = ()
+TAG_PROPERTIES = (*TAG_LIST_PROPERTIES, *DOMAIN_TEXT_PROPERTIES, "context_summary")
 FAILURES_START = "<!-- literature-intake:needs-attention:start -->"
 FAILURES_END = "<!-- literature-intake:needs-attention:end -->"
 
@@ -538,6 +537,9 @@ def _set_default_tag_properties(markdown):
     for key in TAG_LIST_PROPERTIES:
         if not re.search(r"^" + re.escape(key) + r":", _frontmatter(markdown)[0], re.M):
             markdown = _set_or_add_frontmatter(markdown, key, [])
+    for key in DOMAIN_TEXT_PROPERTIES:
+        if not re.search(r"^" + re.escape(key) + r":", _frontmatter(markdown)[0], re.M):
+            markdown = _set_or_add_frontmatter(markdown, key, "")
     if not re.search(r"^context_summary:", _frontmatter(markdown)[0], re.M):
         markdown = _set_or_add_frontmatter(markdown, "context_summary", "")
     return markdown
@@ -554,7 +556,7 @@ def _optional_frontmatter_list(markdown, key):
 def _vault_connections(markdown, note, root):
     """Find the most relevant existing notes using only frontmatter overlap."""
     authors = set(_optional_frontmatter_list(markdown, "authors"))
-    topics = set(_optional_frontmatter_list(markdown, "research_topics"))
+    topics = set(_optional_frontmatter_list(markdown, "research_topics")) if "research_topics" in TAG_LIST_PROPERTIES else set()
     matches = []
     papers = root / "Literature Notes" / "Papers"
     if papers.exists():
@@ -564,7 +566,7 @@ def _vault_connections(markdown, note, root):
             try:
                 existing = path.read_text(encoding="utf-8")
                 shared_authors = sorted(authors.intersection(_optional_frontmatter_list(existing, "authors")))
-                shared_topics = sorted(topics.intersection(_optional_frontmatter_list(existing, "research_topics")))
+                shared_topics = sorted(topics.intersection(_optional_frontmatter_list(existing, "research_topics"))) if topics else []
             except (OSError, UnicodeError, ValueError):
                 continue
             if shared_authors or shared_topics:

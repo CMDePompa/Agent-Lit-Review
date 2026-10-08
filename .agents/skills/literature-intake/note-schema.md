@@ -2,33 +2,54 @@
 
 Use the existing template and database property names. Create one new Markdown note in `Literature Notes/Papers` named from the PDF source stem, which allows collision detection before reading. The filename is never evidence for claims or metadata.
 
-Frontmatter: `title` (string), `parent_title` (string), `authors` (list), `year` (integer or null), `source_type` (string), `document_type` (`primary`, `review`, `textbook_chapter`, or `thesis_chapter`), `thesis_subtype` (required for thesis chapters), `mapped_thesis_aim` (required for a research-body thesis chapter), `source_file_count` (integer), `journal` (string), `doi` (string), `chapter_number` (integer), `chapter_title` (string), `page_scope` (string), `summary_scope` (string), `pdf` (list of Obsidian links, one for the primary PDF and, when present, one for SI), `supplementary_pdf` (relative project path to the SI PDF or null), `research_topics` (list), `methodology` (list), `evidence_type` (list), `polymer_system` (list), `morphologies` (list), `paper_role` (list), `context_summary` (brief string), `metadata_source` (PDF, zotero, or mendeley), `reference_provider`, `reference_item_key`, `reference_match_method`, `reference_export_modified_at`, `reference_export_age_days`, `summary_status: ai-draft`, `review_status: unread`, `metadata_review_needed` (boolean). The `pdf` links use vault-root paths such as `[[PDFs/Ingested/paper.pdf]]`; the helper sets them after choosing Inbox or Ingested destinations. For articles, use reference-manager fields only after a confident match as described in [reference-metadata.md](reference-metadata.md). For other source types, use only metadata clearly visible in the PDF and leave reference-manager fields blank. Missing or conflicting values, a stale export, or uncertain PDF metadata set `metadata_review_needed: true`.
+## Frontmatter
 
-Populate the six tag lists with short, consistent lowercase kebab-case labels supported by the source. Write them as inline YAML lists of quoted strings, such as `research_topics: ["phase-behavior", "sequence-disorder"]`.
+Every note includes these workflow properties:
 
-## Formatting rule for math, equations, and units
+- `title` (string)
+- `parent_title` (string)
+- `authors` (list)
+- `year` (integer or null)
+- `source_type` (string)
+- `document_type` (`primary`, `review`, `textbook_chapter`, or `thesis_chapter`)
+- `thesis_subtype` (required for thesis chapters)
+- `mapped_thesis_aim` (required for a research-body thesis chapter)
+- `source_file_count` (integer)
+- `journal` (string)
+- `doi` (string)
+- `chapter_number` (integer)
+- `chapter_title` (string)
+- `page_scope` (string)
+- `summary_scope` (string)
+- `pdf` (list of Obsidian links, one for the primary PDF and, when present, one for SI)
+- `supplementary_pdf` (relative project path to the SI PDF or null)
+- `context_summary` (brief string): one concise, source-grounded sentence about the work's role or context. For the configured research vocabulary, consult [research-context.md](research-context.md).
+- `metadata_source` (PDF, zotero, or mendeley)
+- `reference_provider`
+- `reference_item_key`
+- `reference_match_method`
+- `reference_export_modified_at`
+- `reference_export_age_days`
+- `summary_status: ai-draft`
+- `review_status: unread`
+- `metadata_review_needed` (boolean)
 
-- **Inline math:** Wrap every inline mathematical expression, single variable, physical parameter, and Greek letter in single dollar signs (`$...$`). Write $\chi_{AB}$, $M_n$, or $p \le 1/3$; never write `(chi_AB)` or `p <= 1/3`.
-- **Units and quantities:** Render scientific units in LaTeX using `\text{}` or inline math where applicable, such as $10^5\text{ g/mol}$ or $180^\circ\text{C}$.
-- **Display math:** Put standalone, multi-line, and primary governing equations between double dollar signs on their own lines:
+Research domain properties are configured in `research-config.yaml`. Extract only values supported by the source; leave unsupported fields empty.
 
-  $$
-  E = mc^2
-  $$
+<!-- research-setup:domain-properties:start -->
+- `research_topics` (list): Scientific questions or subject areas addressed.
+- `methodology` (list): Methods, models, or experimental and computational techniques used.
+- `evidence_type` (list): Broad evidence basis, such as analytical, computational, experimental, or review.
+- `polymer_system` (list): Polymer architectures, chemistries, and blends actually studied; leave empty for non-polymer work.
+- `morphologies` (list): Named morphologies explicitly studied, predicted, or reviewed.
+- `paper_role` (list): The paper's role in the literature, such as foundational, theory, methods, experimental, or review.
+<!-- research-setup:domain-properties:end -->
 
-- **LaTeX commands:** Use proper backslashes for symbols and functions, including `\chi`, `\alpha`, `\le`, and `\frac{}{}`.
-- **Forbidden delimiters:** Never use standard parentheses `(...)` or square brackets `[...]` to enclose LaTeX expressions.
+## Note template
 
-- `research_topics`: scientific questions or subject areas addressed.
-- `methodology`: methods, models, or experimental and computational techniques used.
-- `evidence_type`: broad evidence basis, such as `analytical`, `computational`, `experimental`, or `review`.
-- `polymer_system`: polymer architectures, chemistries, and blends actually studied; leave empty for non-polymer work.
-- `morphologies`: named morphologies explicitly studied, predicted, or reviewed.
-- `paper_role`: the paper's role in the literature, such as `foundational`, `theory`, `methods`, `experimental`, or `review`.
+For `document_type: review`, use [review-extraction.md](review-extraction.md) and the Review Note Template instead. For `document_type: textbook_chapter`, use [textbook-extraction.md](textbook-extraction.md) and the Textbook Chapter Note Template. For `document_type: thesis_chapter`, use [thesis-chapter-extraction.md](thesis-chapter-extraction.md) and its subtype-specific base or synthesis template. For a complete `thesis`, use [source-types.md](source-types.md). Keep the three human-owned headings in every note.
 
-Use empty lists when a category does not apply or cannot be established; do not force domain-specific tags. `context_summary` is one concise, source-grounded sentence about the work's role or context. For the current polymer research vocabulary and examples, consult [research-context.md](research-context.md).
-
-Start with an AI draft warning. The intake helper places Obsidian wikilinks to the primary PDF and, when present, its SI in the `pdf` property so the Literature Database can display them. Do not add duplicate PDF links to the note body. For `document_type: primary`, include these exact level-two headings once each. For `document_type: review`, use [review-extraction.md](review-extraction.md) and the Review Note Template instead:
+Start with an AI draft warning. For `document_type: primary`, include these exact level-two headings once each:
 
 1. Rapid Summary — brief prose covering question, approach, and central outcome.
 2. Research Question — prose or `Not stated.`
@@ -41,15 +62,23 @@ Start with an AI draft warning. The intake helper places Obsidian wikilinks to t
 9. Supplementary Information Used — Include this section only when a paired supplementary-information PDF was actually consulted.
     - **File:** Exact supplementary PDF filename
     - **Material consulted:** Relevant sections, methods, figures, tables, or appendices examined
-    - **Important contributions to this note:** Findings, methodological details, parameter values, controls, or qualifications obtained from the supplementary information
-
-If no supplementary PDF was paired with the primary source, omit this section entirely.
+    - **Important contributions to this note:** Findings, methodological details, parameter values, controls, or qualifications obtained from the supplementary information.
+    - If no supplementary PDF was paired with the primary source, omit this section entirely.
 10. Suggested Topics — short descriptive bullets grounded in the paper.
 11. Vault Connections — generated by the commit helper from exact author or research-topic overlap with existing notes. Do not draft links here.
 12. My Notes — leave blank for the human.
 13. Figure Screenshots — leave blank for the human.
 14. Connections to Other Papers — leave blank for the human.
 
-For `document_type: textbook_chapter`, use [textbook-extraction.md](textbook-extraction.md) and the Textbook Chapter Note Template. For `document_type: thesis_chapter`, use [thesis-chapter-extraction.md](thesis-chapter-extraction.md) and its subtype-specific base or synthesis template. For a complete `thesis`, use [source-types.md](source-types.md). Keep the three human-owned headings in every note.
 
-Optional `Claims to Verify Manually` and `Supporting Evidence` sections may be placed before Suggested Topics. Do not invent page numbers. Use `not stated`, `null`, empty lists, and explicit warnings for unavailable or uncertain information. Do not write hidden reasoning or extracted full paper text into the note or provenance. The helper validates the required headings and performs exclusive file creation; inspect the draft for scientific fidelity before committing it. If supplementary_pdf is populated: require "## Supplementary Information Used". If supplementary_pdf is null: permit the section to be absent.
+## Additional instructions
+
+- Populate configured list properties with short, consistent lowercase kebab-case labels supported by the source. Write them as inline YAML lists of quoted strings, such as `study_organisms: ["oak", "pine"]` in a project that configures that property.
+- The intake helper places Obsidian wikilinks to the primary PDF and, when present, its SI in the `pdf` property so the Literature Database can display them. Do not add duplicate PDF links to the note body. The `pdf` links use vault-root paths such as `[[PDFs/Ingested/paper.pdf]]`; the helper sets them after choosing Inbox or Ingested destinations. If `supplementary_pdf` is populated, include `## Supplementary Information Used`; otherwise omit it.
+- For articles, use reference-manager fields only after a confident match as described in [reference-metadata.md](reference-metadata.md). For other source types, use only metadata clearly visible in the PDF and leave reference-manager fields blank. Missing or conflicting values, a stale export, or uncertain PDF metadata set `metadata_review_needed: true`.
+- Use empty lists when a category does not apply or cannot be established; do not force domain-specific tags.
+- Optional `Claims to Verify Manually` and `Supporting Evidence` sections may be placed before Suggested Topics.
+- Do not invent page numbers.
+- Use `not stated`, `null`, empty lists, and explicit warnings for unavailable or uncertain information.
+- Do not write hidden reasoning or extracted full paper text into the note or provenance.
+- The helper validates the required headings and performs exclusive file creation; inspect the draft for scientific fidelity before committing it.

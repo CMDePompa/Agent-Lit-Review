@@ -1,0 +1,63 @@
+# Agent Lit Review setup. Edit research_context, domain_properties,
+# domain_view_name, and formatting_rules below.
+# Every note always includes these workflow-owned properties; they are listed for
+# orientation and are not configuration keys:
+# - title (string)
+# - parent_title (string)
+# - authors (list)
+# - year (integer or null)
+# - source_type (string)
+# - document_type (`primary`, `review`, `textbook_chapter`, or `thesis_chapter`)
+# - thesis_subtype (required for thesis chapters)
+# - mapped_thesis_aim (required for a research-body thesis chapter)
+# - source_file_count (integer)
+# - journal (string)
+# - doi (string)
+# - chapter_number (integer)
+# - chapter_title (string)
+# - page_scope (string)
+# - summary_scope (string)
+# - pdf (list of Obsidian links, one for the primary PDF and, when present, one for SI)
+# - supplementary_pdf (relative project path to the SI PDF or null)
+# - context_summary (brief string): one concise, source-grounded sentence about the work's role or context.
+# - metadata_source (PDF, zotero, or mendeley)
+# - reference_provider
+# - reference_item_key
+# - reference_match_method
+# - reference_export_modified_at
+# - reference_export_age_days
+# - summary_status: ai-draft
+# - review_status: unread
+# - metadata_review_needed (boolean)
+
+research_context: |
+  The researcher studies dissipative particle dynamics (DPD) simulations of block copolymers. Relevant outcomes include order-disorder and order-order transitions, lamellar morphology and domain spacing, and structure-factor analysis. Interface questions include width, roughness, and waviness. Architectures include diblocks and triblocks. Polymer self-assembly theory and simulation methodology may also be relevant.
+
+  Relate a paper only where its actual methods or findings support a useful connection. Identify whether the connection is direct, indirect, or low relevance. Do not claim a paper studied DPD, sequence effects, or a particular architecture unless the PDF establishes that.
+
+domain_properties:
+  - name: research_topics
+    type: list
+    description: Scientific questions or subject areas addressed.
+  - name: methodology
+    type: list
+    description: Methods, models, or experimental and computational techniques used.
+  - name: evidence_type
+    type: list
+    description: Broad evidence basis, such as analytical, computational, experimental, or review.
+  - name: polymer_system
+    type: list
+    description: Polymer architectures, chemistries, and blends actually studied; leave empty for non-polymer work.
+  - name: morphologies
+    type: list
+    description: Named morphologies explicitly studied, predicted, or reviewed.
+  - name: paper_role
+    type: list
+    description: The paper's role in the literature, such as foundational, theory, methods, experimental, or review.
+
+domain_view_name: BlockCopolymers
+# domain_view_name labels the domain view in Obsidian. A short, plain name is easiest to use.
+
+# Optional custom formatting conventions for the target discipline
+formatting_rules:
+  - '**LaTeX commands:** Use proper backslashes for symbols and functions, such as `\chi`, `\alpha`, `\le`, and `\frac{}{}`.'

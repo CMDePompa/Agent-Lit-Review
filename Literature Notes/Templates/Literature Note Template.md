@@ -20,12 +20,14 @@ reference_export_modified_at: ""
 reference_export_age_days: null
 supplementary_pdf: null
 pdf: []
+# research-setup:domain-properties:start
 research_topics: []
 methodology: []
 evidence_type: []
 polymer_system: []
 morphologies: []
 paper_role: []
+# research-setup:domain-properties:end
 context_summary: ""
 summary_status: ai-draft
 review_status: unread
